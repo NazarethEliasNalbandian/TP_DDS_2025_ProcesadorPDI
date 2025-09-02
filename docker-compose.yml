@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: tpdds_db
+    environment:
+      POSTGRES_DB: tpdds
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tpdds"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - tpnet
+
+  app:
+    # Opción A: construir con tu Dockerfile
+    build: .
+    # Opción B (alternativa): ejecutar un JAR ya compilado
+    # image: eclipse-temurin:21-jre
+    # volumes:
+    #   - ./target/app.jar:/app/app.jar:ro
+    # command: ["java", "-jar", "/app/app.jar"]
+    container_name: tpdds_app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: "prod,postgres"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: tpdds
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      PORT: "8080"
+      # Tu variable propia del módulo Solicitudes:
+      URL_SOLICITUDES: "https://two025-tp-entrega-2-jenniferfabflores.onrender.com/"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - tpnet
+
+volumes:
+  db_data:
+
+networks:
+  tpnet:

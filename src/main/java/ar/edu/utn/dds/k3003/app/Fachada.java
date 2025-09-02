@@ -48,24 +48,20 @@ public class Fachada implements FachadaProcesadorPdI {
         final String hechoId = pdiDTORecibido.hechoId();
         final boolean activo;
 
-//        if (!fachadaSolicitudes.estaActivo(pdiDTORecibido.hechoId())) {
-//            throw new IllegalStateException("El hecho está inactivo o fue borrado");
+//        try {
+//            activo = fachadaSolicitudes.estaActivo(hechoId);
+//        } catch (java.util.NoSuchElementException e) {
+//            // El proxy tira esto si no hay solicitud para ese ID
+//            throw new HechoInexistenteException(hechoId, e);
+//        } catch (RestClientException e) {
+//            // Timeouts, 5xx, DNS, etc.
+//            throw new SolicitudesCommunicationException(
+//                    "Fallo al consultar 'Solicitudes' para hecho " + hechoId, e);
 //        }
-
-        try {
-            activo = fachadaSolicitudes.estaActivo(hechoId);
-        } catch (java.util.NoSuchElementException e) {
-            // El proxy tira esto si no hay solicitud para ese ID
-            throw new HechoInexistenteException(hechoId, e);
-        } catch (RestClientException e) {
-            // Timeouts, 5xx, DNS, etc.
-            throw new SolicitudesCommunicationException(
-                    "Fallo al consultar 'Solicitudes' para hecho " + hechoId, e);
-        }
-
-        if (!activo) {
-            throw new HechoInactivoException(hechoId);
-        }
+//
+//        if (!activo) {
+//            throw new HechoInactivoException(hechoId);
+//        }
 
         PdI nuevoPdI = recibirPdIDTO(pdiDTORecibido);
 
