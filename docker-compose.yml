@@ -3,7 +3,6 @@ version: "3.9"
 services:
   db:
     image: postgres:16
-    container_name: tpdds_db
     environment:
       POSTGRES_DB: tpdds
       POSTGRES_USER: postgres
@@ -22,14 +21,7 @@ services:
       - tpnet
 
   app:
-    # Opción A: construir con tu Dockerfile
     build: .
-    # Opción B (alternativa): ejecutar un JAR ya compilado
-    # image: eclipse-temurin:21-jre
-    # volumes:
-    #   - ./target/app.jar:/app/app.jar:ro
-    # command: ["java", "-jar", "/app/app.jar"]
-    container_name: tpdds_app
     depends_on:
       db:
         condition: service_healthy
@@ -40,7 +32,6 @@ services:
       DB_NAME: tpdds
       DB_USER: postgres
       DB_PASSWORD: postgres
-      PORT: "8080"
       # Tu variable propia del módulo Solicitudes:
       URL_SOLICITUDES: "https://two025-tp-entrega-2-jenniferfabflores.onrender.com/"
     ports:
