@@ -1,5 +1,6 @@
 package ar.edu.utn.dds.k3003.controller;
 
+import ar.edu.utn.dds.k3003.facades.FachadaProcesadorPDI;
 import ar.edu.utn.dds.k3003.facades.FachadaProcesadorPdI;
 import ar.edu.utn.dds.k3003.facades.dtos.PdIDTO;
 
@@ -13,11 +14,11 @@ import java.util.List;
 @RequestMapping("/api/pdis")
 public class PdIController {
 
-    private final FachadaProcesadorPdI fachadaProcesadorPdI;
+    private final FachadaProcesadorPDI fachadaProcesadorPdI;
 
     // Constructor
     @Autowired
-    public PdIController(FachadaProcesadorPdI fachadaProcesadorPdI) {
+    public PdIController(FachadaProcesadorPDI fachadaProcesadorPdI) {
         this.fachadaProcesadorPdI = fachadaProcesadorPdI;
     }
 
@@ -31,8 +32,8 @@ public class PdIController {
             return ResponseEntity.ok(fachadaProcesadorPdI.buscarPorHecho(hecho));
         } else {
             // GET /pdis
-            throw new UnsupportedOperationException("Falta agregar pids a FachadaProcesadorPdI");
-            // return ResponseEntity.ok(fachadaProcesadorPdI.pdis());
+            // throw new UnsupportedOperationException("Falta agregar pids a FachadaProcesadorPdI");
+            return ResponseEntity.ok(fachadaProcesadorPdI.pdis());
         }
     }
 

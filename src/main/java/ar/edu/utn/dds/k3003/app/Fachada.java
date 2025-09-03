@@ -3,7 +3,7 @@ package ar.edu.utn.dds.k3003.app;
 import ar.edu.utn.dds.k3003.exceptions.domain.pdi.HechoInactivoException;
 import ar.edu.utn.dds.k3003.exceptions.domain.pdi.HechoInexistenteException;
 import ar.edu.utn.dds.k3003.exceptions.infrastructure.solicitudes.SolicitudesCommunicationException;
-import ar.edu.utn.dds.k3003.facades.FachadaProcesadorPdI;
+import ar.edu.utn.dds.k3003.facades.FachadaProcesadorPDI;
 import ar.edu.utn.dds.k3003.facades.FachadaSolicitudes;
 import ar.edu.utn.dds.k3003.facades.dtos.PdIDTO;
 import ar.edu.utn.dds.k3003.model.PdI;
@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 @Service
-public class Fachada implements FachadaProcesadorPdI {
+public class Fachada implements FachadaProcesadorPDI {
 
     private FachadaSolicitudes fachadaSolicitudes;
 
@@ -159,12 +159,11 @@ public class Fachada implements FachadaProcesadorPdI {
         return nuevoPdI;
     }
 
-    //    @Override
-    //    public List<PdIDTO> pdis() {
-    //        return this.PdIRepository.findAll()
-    //                .stream()
-    //                .map(this::convertirADTO)
-    //                .toList();
-    //    }
-
+        @Override
+        public List<PdIDTO> pdis() {
+            return this.pdiRepository.findAll()
+                    .stream()
+                    .map(this::convertirADTO)
+                    .toList();
+        }
 }
