@@ -13,4 +13,6 @@ public interface PdIRepository {
     List<PdI> findByHechoId(String hechoId);
 
     List<PdI> findAll();
+
+    void deleteAll();
 }

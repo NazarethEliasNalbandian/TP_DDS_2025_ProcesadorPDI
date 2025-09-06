@@ -44,4 +44,10 @@ public class InMemoryPdIRepo implements PdIRepository {
     public List<PdI> findAll() {
         return new ArrayList<>(diccionarioPdI.values());
     }
+
+    @Override
+    public void deleteAll() {
+        diccionarioPdI.clear();
+        diccionarioHechos.clear();
+    }
 }

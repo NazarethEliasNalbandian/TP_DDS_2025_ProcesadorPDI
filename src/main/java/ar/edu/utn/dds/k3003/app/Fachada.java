@@ -166,4 +166,10 @@ public class Fachada implements FachadaProcesadorPDI {
                     .map(this::convertirADTO)
                     .toList();
         }
+
+        @Override
+        public void borrarTodo() {
+            pdiRepository.deleteAll();
+            generadorID.set(1); // opcional: reiniciar IDs en memoria
+        }
 }

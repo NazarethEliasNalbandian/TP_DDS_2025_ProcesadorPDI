@@ -49,4 +49,11 @@ public class PdIController {
     public ResponseEntity<PdIDTO> procesarNuevoPdi(@RequestBody PdIDTO pdi) {
         return ResponseEntity.ok(fachadaProcesadorPdI.procesar(pdi));
     }
+
+    // NEW: DELETE /api/pdis/purge
+    @DeleteMapping("/purge")
+    public ResponseEntity<Void> borrarTodo() {
+        fachadaProcesadorPdI.borrarTodo();
+        return ResponseEntity.noContent().build();
+    }
 }

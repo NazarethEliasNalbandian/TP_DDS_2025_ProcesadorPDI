@@ -17,6 +17,8 @@ public interface FachadaProcesadorPDI {
 
     List<PdIDTO> pdis();
 
+    void borrarTodo();
+
 
 
 }
