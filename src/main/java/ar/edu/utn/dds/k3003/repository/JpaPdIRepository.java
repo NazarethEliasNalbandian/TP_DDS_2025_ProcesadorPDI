@@ -1,4 +1,3 @@
-/*
 package ar.edu.utn.dds.k3003.repository;
 
 import ar.edu.utn.dds.k3003.model.PdI;
@@ -15,4 +14,3 @@ public interface JpaPdIRepository extends JpaRepository<PdI, Long>, PdIRepositor
 
     List<PdI> findByHechoId(String hechoId);
 }
-*/
