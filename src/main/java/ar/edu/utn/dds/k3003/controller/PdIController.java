@@ -43,11 +43,12 @@ public class PdIController {
         return ResponseEntity.ok(toResponse(dto));
     }
 
-    // POST /api/pdis
     @PostMapping
     public ResponseEntity<PdIResponseDTO> procesarNuevoPdi(@RequestBody PdIRequestDTO req) {
+        System.out.println("ProcesadorPdI ← Fuentes (req DTO): " + req);
+
         PdIDTO entrada = new PdIDTO(
-                null,                         // id lo asigna el módulo dueño
+                null,
                 req.hechoId(),
                 req.descripcion(),
                 req.lugar(),
@@ -55,10 +56,14 @@ public class PdIController {
                 req.contenido(),
                 req.etiquetas() == null ? List.of() : req.etiquetas()
         );
+        System.out.println("ProcesadorPdI mapea a PdIDTO: " + entrada);
 
         PdIDTO procesado = fachadaProcesadorPdI.procesar(entrada);
+        System.out.println("ProcesadorPdI devuelve PdIDTO: " + procesado);
+
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(procesado));
     }
+
 
     // DELETE /api/pdis/purge
     @DeleteMapping("/purge")

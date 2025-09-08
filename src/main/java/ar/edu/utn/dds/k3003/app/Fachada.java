@@ -45,6 +45,8 @@ public class Fachada implements FachadaProcesadorPDI {
 
     @Override
     public PdIDTO procesar(PdIDTO pdiDTORecibido) {
+        System.out.println("ProcesadorPdI.Fachada.procesar() recibió: " + pdiDTORecibido);
+
         final String hechoId = pdiDTORecibido.hechoId();
         final boolean activo;
 
@@ -64,6 +66,7 @@ public class Fachada implements FachadaProcesadorPDI {
 //        }
 
         PdI nuevoPdI = recibirPdIDTO(pdiDTORecibido);
+        System.out.println("ProcesadorPdI.Fachada.procesar() mapeado a entidad: " + nuevoPdI);
 
         // Buscar duplicado a mano
         Optional<PdI> yaProcesado =
@@ -83,6 +86,8 @@ public class Fachada implements FachadaProcesadorPDI {
         nuevoPdI.setId(generadorID.getAndIncrement());
         nuevoPdI.setEtiquetas(etiquetar(nuevoPdI.getContenido()));
         pdiRepository.save(nuevoPdI);
+        System.out.println("Guardado PdI id=" + nuevoPdI.getId() + " hechoId=" + nuevoPdI.getHechoId());
+
 
         System.out.println(
                 "Se guardó el PdI con ID "
@@ -91,6 +96,9 @@ public class Fachada implements FachadaProcesadorPDI {
                         + nuevoPdI.getHechoId());
 
         PdIDTO pdiDTOAEnviar = convertirADTO(nuevoPdI);
+
+        System.out.println("ProcesadorPdI.Fachada.procesar() responde: " + pdiDTOAEnviar);
+
         return pdiDTOAEnviar;
     }
 
