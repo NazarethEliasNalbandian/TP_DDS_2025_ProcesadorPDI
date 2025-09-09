@@ -85,7 +85,7 @@ public class SolicitudesRestTemplateProxy implements FachadaSolicitudes {
 
     @Override
     public boolean estaActivo(String hechoId) {
-        var resp = rt.getForEntity(api("/api/solicitudes/hechos/{hechoId}"),
+        var resp = rt.getForEntity(api("/solicitudes/hechos/{hechoId}"),
                 HechoResponseDTO.class, hechoId);
         var body = resp.getBody();
         if (body == null) {
