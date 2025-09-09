@@ -89,8 +89,7 @@ public class Fachada implements FachadaProcesadorPDI {
         if (yaProcesado.isPresent()) {
             return convertirADTO(yaProcesado.get());
         }
-
-        nuevoPdI.setId(generadorID.getAndIncrement());
+        
         nuevoPdI.setEtiquetas(etiquetar(nuevoPdI.getContenido()));
         pdiRepository.save(nuevoPdI);
         System.out.println("Guardado PdI id=" + nuevoPdI.getId() + " hechoId=" + nuevoPdI.getHechoId());
