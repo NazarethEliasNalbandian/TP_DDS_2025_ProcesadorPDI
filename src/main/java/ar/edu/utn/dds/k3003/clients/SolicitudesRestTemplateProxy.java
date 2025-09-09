@@ -22,7 +22,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 @Slf4j
 @Component
-@Profile("prod")
+@Profile({"prod","default"})
 public class SolicitudesRestTemplateProxy implements FachadaSolicitudes {
 
     private final RestTemplate rt;
@@ -95,6 +95,7 @@ public class SolicitudesRestTemplateProxy implements FachadaSolicitudes {
                 .toUri();
 
         // --- LOG de lo que envío ---
+        log.info("[Solicitudes→GET] url={} hechoId={}", uri, hechoId);
         log.debug("[Solicitudes→GET] url={} hechoId={}", uri, hechoId);
 
         try {
@@ -102,16 +103,20 @@ public class SolicitudesRestTemplateProxy implements FachadaSolicitudes {
                     rt.getForEntity(uri, HechoResponseDTO.class);
 
             // --- LOG de lo que recibí ---
+            log.info("[Solicitudes←RESP] status={} body={}",
+                    resp.getStatusCodeValue(), resp.getBody());
             log.debug("[Solicitudes←RESP] status={} body={}",
                     resp.getStatusCodeValue(), resp.getBody());
 
             HechoResponseDTO body = resp.getBody();
             if (body == null) {
+                log.info("[Solicitudes←RESP] cuerpo nulo para url={}", uri);
                 log.error("[Solicitudes←RESP] cuerpo nulo para url={}", uri);
                 throw new RestClientException("Respuesta vacía de Solicitudes para " + hechoId);
             }
 
             // --- LOG del valor interpretado que usarás en tu lógica ---
+            log.info("[Solicitudes←OK] hechoId={} activo={}", body.hechoId(), body.activo());
             log.debug("[Solicitudes←OK] hechoId={} activo={}", body.hechoId(), body.activo());
             return body.activo();
 

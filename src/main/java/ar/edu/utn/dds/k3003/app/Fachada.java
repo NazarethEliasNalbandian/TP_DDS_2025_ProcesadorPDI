@@ -12,6 +12,7 @@ import ar.edu.utn.dds.k3003.repository.PdIRepository;
 
 import lombok.Getter;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
@@ -20,6 +21,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class Fachada implements FachadaProcesadorPDI {
 
@@ -51,7 +53,10 @@ public class Fachada implements FachadaProcesadorPDI {
         final boolean activo;
 
         try {
+            log.info("[ProcesadorPdI] Consultando Solicitudes.estaActivo(hechoId={})...", hechoId);
             activo = fachadaSolicitudes.estaActivo(hechoId);
+            log.info("[ProcesadorPdI] Solicitudes.estaActivo({}) -> {}", hechoId, activo);
+
         } catch (java.util.NoSuchElementException e) {
             // El proxy tira esto si no hay solicitud para ese ID
             throw new HechoInexistenteException(hechoId, e);
