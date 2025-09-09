@@ -1,5 +1,7 @@
 package ar.edu.utn.dds.k3003.controller;
 
+import ar.edu.utn.dds.k3003.controller.dtos.ProcesamientoResponseDTO;
+import ar.edu.utn.dds.k3003.exceptions.domain.pdi.HechoInactivoException;
 import ar.edu.utn.dds.k3003.facades.FachadaProcesadorPDI;
 import ar.edu.utn.dds.k3003.facades.dtos.PdIDTO;
 import ar.edu.utn.dds.k3003.controller.dtos.PdIRequestDTO;
@@ -44,7 +46,7 @@ public class PdIController {
     }
 
     @PostMapping
-    public ResponseEntity<PdIResponseDTO> procesarNuevoPdi(@RequestBody PdIRequestDTO req) {
+    public ResponseEntity<ProcesamientoResponseDTO> procesarNuevoPdi(@RequestBody PdIRequestDTO req) {
         System.out.println("ProcesadorPdI ← Fuentes (req DTO): " + req);
 
         PdIDTO entrada = new PdIDTO(
@@ -58,10 +60,13 @@ public class PdIController {
         );
         System.out.println("ProcesadorPdI mapea a PdIDTO: " + entrada);
 
-        PdIDTO procesado = fachadaProcesadorPdI.procesar(entrada);
-        System.out.println("ProcesadorPdI devuelve PdIDTO: " + procesado);
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(procesado));
+        try {
+            PdIDTO procesado = fachadaProcesadorPdI.procesar(entrada);
+            System.out.println("ProcesadorPdI devuelve PdIDTO: " + procesado);
+            return ResponseEntity.ok(new ProcesamientoResponseDTO(true, procesado.etiquetas()));
+        } catch (HechoInactivoException e) {
+            return ResponseEntity.ok(new ProcesamientoResponseDTO(false, List.of()));
+        }
     }
 
 
