@@ -14,6 +14,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -29,6 +30,8 @@ public class SolicitudesRestTemplateProxy implements FachadaSolicitudes {
         this.rt = rt;
         this.base = base.endsWith("/") ? base : base + "/";
     }
+
+    private record HechoResponseDTO(String hechoId, boolean activo) {}
 
     private String api(String path) {
         return base + (path.startsWith("/") ? path.substring(1) : path);
@@ -81,21 +84,16 @@ public class SolicitudesRestTemplateProxy implements FachadaSolicitudes {
     }
 
     @Override
-    public boolean estaActivo(String hechoId) throws NoSuchElementException {
-        // Opción A: endpoint booleano (si lo tienen)
-        try {
-            var uri = UriComponentsBuilder.fromHttpUrl(api("/api/solicitudes/activo"))
-                    .queryParam("hecho", hechoId).build().toUri();
-            ResponseEntity<Boolean> resp = rt.getForEntity(uri, Boolean.class);
-            if (resp.getBody() != null) return resp.getBody();
-        } catch (HttpClientErrorException.NotFound ignored) {
-            // sigue a opción B
+    public boolean estaActivo(String hechoId) {
+        var resp = rt.getForEntity(api("/api/solicitudes/hechos/{hechoId}"),
+                HechoResponseDTO.class, hechoId);
+        var body = resp.getBody();
+        if (body == null) {
+            throw new RestClientException("Respuesta vacía de Solicitudes para " + hechoId);
         }
-
-        // Opción B (fallback): hay solicitudes activas para ese hecho?
-        var lista = buscarSolicitudXHecho(hechoId);
-        return lista != null && !lista.isEmpty(); // ajustá si tu DTO tiene un campo estado
+        return body.activo();
     }
+
 
     @Override
     public void setFachadaFuente(FachadaFuente fachadaFuente) {
