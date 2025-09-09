@@ -8,6 +8,8 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.ParameterizedTypeReference;
@@ -18,6 +20,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+@Slf4j
 @Component
 @Profile("prod")
 public class SolicitudesRestTemplateProxy implements FachadaSolicitudes {
@@ -85,13 +88,41 @@ public class SolicitudesRestTemplateProxy implements FachadaSolicitudes {
 
     @Override
     public boolean estaActivo(String hechoId) {
-        var resp = rt.getForEntity(api("/solicitudes/hechos/{hechoId}"),
-                HechoResponseDTO.class, hechoId);
-        var body = resp.getBody();
-        if (body == null) {
-            throw new RestClientException("Respuesta vacía de Solicitudes para " + hechoId);
+        final String rel = "/solicitudes/hechos/{hechoId}"; // o "/api/solicitudes/hechos/{hechoId}" según tu base-url
+        final URI uri = UriComponentsBuilder
+                .fromHttpUrl(api(rel))        // api() concatena con la base normalizada
+                .buildAndExpand(hechoId)      // expande la plantilla {hechoId}
+                .toUri();
+
+        // --- LOG de lo que envío ---
+        log.debug("[Solicitudes→GET] url={} hechoId={}", uri, hechoId);
+
+        try {
+            ResponseEntity<HechoResponseDTO> resp =
+                    rt.getForEntity(uri, HechoResponseDTO.class);
+
+            // --- LOG de lo que recibí ---
+            log.debug("[Solicitudes←RESP] status={} body={}",
+                    resp.getStatusCodeValue(), resp.getBody());
+
+            HechoResponseDTO body = resp.getBody();
+            if (body == null) {
+                log.error("[Solicitudes←RESP] cuerpo nulo para url={}", uri);
+                throw new RestClientException("Respuesta vacía de Solicitudes para " + hechoId);
+            }
+
+            // --- LOG del valor interpretado que usarás en tu lógica ---
+            log.debug("[Solicitudes←OK] hechoId={} activo={}", body.hechoId(), body.activo());
+            return body.activo();
+
+        } catch (HttpClientErrorException.NotFound e) {
+            log.warn("[Solicitudes←ERR] 404 Not Found url={} hechoId={}", uri, hechoId);
+            throw new NoSuchElementException("No existe el hecho " + hechoId + " en Solicitudes");
+        } catch (RestClientException e) {
+            log.error("[Solicitudes←ERR] Falló GET url={} hechoId={} msg={}",
+                    uri, hechoId, e.getMessage(), e);
+            throw e;
         }
-        return body.activo();
     }
 
 
