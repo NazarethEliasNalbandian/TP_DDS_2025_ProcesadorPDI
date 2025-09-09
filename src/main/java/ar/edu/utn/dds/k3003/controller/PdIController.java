@@ -62,10 +62,16 @@ public class PdIController {
 
         try {
             PdIDTO procesado = fachadaProcesadorPdI.procesar(entrada);
-            System.out.println("ProcesadorPdI devuelve PdIDTO: " + procesado);
-            return ResponseEntity.ok(new ProcesamientoResponseDTO(true, procesado.etiquetas()));
+
+            String pdiId = procesado.id() != null ? String.valueOf(procesado.id()) : null;
+            var etiquetas = (procesado.etiquetas() != null) ? procesado.etiquetas() : List.of();
+
+            // Procesada OK (nueva o duplicada)
+            return ResponseEntity.ok(new ProcesamientoResponseDTO(pdiId, true, (List<String>) etiquetas));
+
         } catch (HechoInactivoException e) {
-            return ResponseEntity.ok(new ProcesamientoResponseDTO(false, List.of()));
+            // 200 con procesada=false, etiquetas vacías y pdiId=null
+            return ResponseEntity.ok(new ProcesamientoResponseDTO(null, false, List.of()));
         }
     }
 

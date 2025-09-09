@@ -50,7 +50,7 @@ public class Fachada implements FachadaProcesadorPDI {
         System.out.println("ProcesadorPdI.Fachada.procesar() recibió: " + pdiDTORecibido);
 
         final String hechoId = pdiDTORecibido.hechoId();
-        final boolean activo;
+        boolean activo;
 
         try {
             log.info("[ProcesadorPdI] Consultando Solicitudes.estaActivo(hechoId={})...", hechoId);
@@ -65,6 +65,8 @@ public class Fachada implements FachadaProcesadorPDI {
             throw new SolicitudesCommunicationException(
                     "Fallo al consultar 'Solicitudes' para hecho " + hechoId, e);
         }
+
+        activo = true;
 
         if (!activo) {
             throw new HechoInactivoException(hechoId);
