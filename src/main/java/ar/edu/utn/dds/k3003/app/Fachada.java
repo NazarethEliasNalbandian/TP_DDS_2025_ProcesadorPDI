@@ -66,8 +66,6 @@ public class Fachada implements FachadaProcesadorPDI {
                     "Fallo al consultar 'Solicitudes' para hecho " + hechoId, e);
         }
 
-        activo = true;
-
         if (!activo) {
             throw new HechoInactivoException(hechoId);
         }
@@ -89,7 +87,7 @@ public class Fachada implements FachadaProcesadorPDI {
         if (yaProcesado.isPresent()) {
             return convertirADTO(yaProcesado.get());
         }
-        
+
         nuevoPdI.setEtiquetas(etiquetar(nuevoPdI.getContenido()));
         pdiRepository.save(nuevoPdI);
         System.out.println("Guardado PdI id=" + nuevoPdI.getId() + " hechoId=" + nuevoPdI.getHechoId());
