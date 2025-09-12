@@ -1,9 +1,6 @@
 package ar.edu.utn.dds.k3003.clients;
 
-import ar.edu.utn.dds.k3003.facades.FachadaFuente;
 import ar.edu.utn.dds.k3003.facades.FachadaSolicitudes;
-import ar.edu.utn.dds.k3003.facades.dtos.EstadoSolicitudBorradoEnum;
-import ar.edu.utn.dds.k3003.facades.dtos.SolicitudDTO;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -123,34 +120,5 @@ public class SolicitudesRetrofitProxy implements FachadaSolicitudes {
         // no debería llegar
         log.error("[estaActivo] OUT (sin resultado) hechoId={}", hechoId);
         return false;
-    }
-
-
-    // =========================
-    // Stubs (no prioritarios)
-    // =========================
-    @Override
-    public SolicitudDTO agregar(SolicitudDTO solicitudDTO) {
-        throw new UnsupportedOperationException("No implementado en Retrofit proxy (enfocado en estaActivo).");
-    }
-
-    @Override
-    public SolicitudDTO modificar(String id, EstadoSolicitudBorradoEnum estado, String motivo) {
-        throw new UnsupportedOperationException("No implementado en Retrofit proxy (enfocado en estaActivo).");
-    }
-
-    @Override
-    public List<SolicitudDTO> buscarSolicitudXHecho(String hechoId) {
-        throw new UnsupportedOperationException("No implementado en Retrofit proxy (enfocado en estaActivo).");
-    }
-
-    @Override
-    public SolicitudDTO buscarSolicitudXId(String id) {
-        throw new UnsupportedOperationException("No implementado en Retrofit proxy (enfocado en estaActivo).");
-    }
-
-    @Override
-    public void setFachadaFuente(FachadaFuente fachadaFuente) {
-        // no-op
     }
 }

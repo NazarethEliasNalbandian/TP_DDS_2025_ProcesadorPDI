@@ -70,18 +70,6 @@
       <version>${mockito.version}</version>
     </dependency>
 
-    <dependency>
-      <groupId>com.github.ezequieljsosa</groupId>
-      <artifactId>dds-eval-tp2025</artifactId>
-      <version>0.0.7</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-simple</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
     <!-- Spring Boot Web (para @RestController, @GetMapping, etc.) -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
