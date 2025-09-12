@@ -31,6 +31,8 @@ public class Fachada implements FachadaProcesadorPDI {
 
     private final AtomicLong generadorID = new AtomicLong(1);
 
+
+
     protected Fachada() {
         this.pdiRepository = new InMemoryPdIRepo();
     }

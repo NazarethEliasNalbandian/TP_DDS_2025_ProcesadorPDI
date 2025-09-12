@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.ParameterizedTypeReference;
@@ -20,13 +22,14 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-@Slf4j
 @Component
 @Profile({"prod","default"})
 public class SolicitudesRestTemplateProxy implements FachadaSolicitudes {
 
     private final RestTemplate rt;
     private final String base; // debe terminar en "/"
+    private static final Logger log = LoggerFactory.getLogger(SolicitudesRestTemplateProxy.class);
+
 
     public SolicitudesRestTemplateProxy(RestTemplate rt,
                                         @Value("${solicitudes.base-url}") String base) {
