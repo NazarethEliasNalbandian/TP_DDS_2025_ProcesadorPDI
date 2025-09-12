@@ -19,10 +19,21 @@ import java.util.List;
 public class PdIController {
 
     private final FachadaProcesadorPDI fachadaProcesadorPdI;
+    private final ar.edu.utn.dds.k3003.facades.FachadaSolicitudes solicitudes; // <- agregar
+
+
+//    @Autowired
+//    public PdIController(FachadaProcesadorPDI fachadaProcesadorPdI) {
+//        this.fachadaProcesadorPdI = fachadaProcesadorPdI;
+//    }
 
     @Autowired
-    public PdIController(FachadaProcesadorPDI fachadaProcesadorPdI) {
+    public PdIController(
+            FachadaProcesadorPDI fachadaProcesadorPdI,
+            @org.springframework.beans.factory.annotation.Qualifier("solicitudesRetrofitProxy")
+            ar.edu.utn.dds.k3003.facades.FachadaSolicitudes solicitudes) {
         this.fachadaProcesadorPdI = fachadaProcesadorPdI;
+        this.solicitudes = solicitudes;
     }
 
     // GET /api/pdis?hecho={hechoId}
@@ -60,6 +71,14 @@ public class PdIController {
         );
         System.out.println("ProcesadorPdI mapea a PdIDTO: " + entrada);
 
+        boolean activo = this.solicitudes.estaActivo(req.hechoId());
+        System.out.println("[Controller] estaActivo(" + req.hechoId() + ") = " + activo);
+
+        // si querés, validá acá mismo:
+        if (!activo) {
+            return ResponseEntity.ok(new ProcesamientoResponseDTO(null, false, List.of()));
+        }
+
         try {
             PdIDTO procesado = fachadaProcesadorPdI.procesar(entrada);
 
@@ -71,6 +90,7 @@ public class PdIController {
 
         } catch (HechoInactivoException e) {
             // 200 con procesada=false, etiquetas vacías y pdiId=null
+            System.out.println("ERRORRRRR: " + entrada);
             return ResponseEntity.ok(new ProcesamientoResponseDTO(null, false, List.of()));
         }
     }

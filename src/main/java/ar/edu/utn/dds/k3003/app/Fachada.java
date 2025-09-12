@@ -52,25 +52,28 @@ public class Fachada implements FachadaProcesadorPDI {
         System.out.println("ProcesadorPdI.Fachada.procesar() recibió: " + pdiDTORecibido);
 
         final String hechoId = pdiDTORecibido.hechoId();
-        boolean activo;
 
-        try {
-            log.info("[ProcesadorPdI] Consultando Solicitudes.estaActivo(hechoId={})...", hechoId);
-            activo = fachadaSolicitudes.estaActivo(hechoId);
-            log.info("[ProcesadorPdI] Solicitudes.estaActivo({}) -> {}", hechoId, activo);
+        log.info("[ProcesadorPdI] PROCESAR {})...", hechoId);
 
-        } catch (java.util.NoSuchElementException e) {
-            // El proxy tira esto si no hay solicitud para ese ID
-            throw new HechoInexistenteException(hechoId, e);
-        } catch (RestClientException e) {
-            // Timeouts, 5xx, DNS, etc.
-            throw new SolicitudesCommunicationException(
-                    "Fallo al consultar 'Solicitudes' para hecho " + hechoId, e);
-        }
-
-        if (!activo) {
-            throw new HechoInactivoException(hechoId);
-        }
+//        boolean activo;
+//
+//        try {
+//            log.info("[ProcesadorPdI] Consultando Solicitudes.estaActivo(hechoId={})...", hechoId);
+//            activo = fachadaSolicitudes.estaActivo(hechoId);
+//            log.info("[ProcesadorPdI] Solicitudes.estaActivo({}) -> {}", hechoId, activo);
+//
+//        } catch (java.util.NoSuchElementException e) {
+//            // El proxy tira esto si no hay solicitud para ese ID
+//            throw new HechoInexistenteException(hechoId, e);
+//        } catch (RestClientException e) {
+//            // Timeouts, 5xx, DNS, etc.
+//            throw new SolicitudesCommunicationException(
+//                    "Fallo al consultar 'Solicitudes' para hecho " + hechoId, e);
+//        }
+//
+//        if (!activo) {
+//            throw new HechoInactivoException(hechoId);
+//        }
 
         PdI nuevoPdI = recibirPdIDTO(pdiDTORecibido);
         System.out.println("ProcesadorPdI.Fachada.procesar() mapeado a entidad: " + nuevoPdI);
