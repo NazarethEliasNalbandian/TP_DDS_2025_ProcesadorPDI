@@ -95,6 +95,9 @@ public class SolicitudesRestTemplateProxy implements FachadaSolicitudes {
                 .toUri();
 
         // --- LOG de lo que envío ---
+
+        System.out.println("[Solicitudes→GET] url=" + uri + " hechoId=" + hechoId);
+
         log.info("[Solicitudes→GET] url={} hechoId={}", uri, hechoId);
         log.debug("[Solicitudes→GET] url={} hechoId={}", uri, hechoId);
 
