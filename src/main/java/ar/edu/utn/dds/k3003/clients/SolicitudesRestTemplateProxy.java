@@ -4,11 +4,15 @@ import ar.edu.utn.dds.k3003.facades.FachadaFuente;
 import ar.edu.utn.dds.k3003.facades.FachadaSolicitudes;
 import ar.edu.utn.dds.k3003.facades.dtos.EstadoSolicitudBorradoEnum;
 import ar.edu.utn.dds.k3003.facades.dtos.SolicitudDTO;
+
+import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,50 +95,49 @@ public class SolicitudesRestTemplateProxy implements FachadaSolicitudes {
 
     @Override
     public boolean estaActivo(String hechoId) {
-        final String rel = "/solicitudes/hechos/{hechoId}"; // o "/api/solicitudes/hechos/{hechoId}" según tu base-url
+        final String rel = "/solicitudes/hechos/{hechoId}";
         final URI uri = UriComponentsBuilder
-                .fromHttpUrl(api(rel))        // api() concatena con la base normalizada
-                .buildAndExpand(hechoId)      // expande la plantilla {hechoId}
+                .fromHttpUrl(api(rel))
+                .buildAndExpand(hechoId)
                 .toUri();
 
-        // --- LOG de lo que envío ---
-
-        System.out.println("[Solicitudes→GET] url=" + uri + " hechoId=" + hechoId);
-
         log.info("[Solicitudes→GET] url={} hechoId={}", uri, hechoId);
-        log.debug("[Solicitudes→GET] url={} hechoId={}", uri, hechoId);
 
         try {
-            ResponseEntity<HechoResponseDTO> resp =
-                    rt.getForEntity(uri, HechoResponseDTO.class);
+            // pedir como String para loguear el raw body
+            ResponseEntity<String> raw = rt.getForEntity(uri, String.class);
+            log.info("[Solicitudes←RESP] status={} body={}", raw.getStatusCodeValue(), raw.getBody());
 
-            // --- LOG de lo que recibí ---
-            log.info("[Solicitudes←RESP] status={} body={}",
-                    resp.getStatusCodeValue(), resp.getBody());
-            log.debug("[Solicitudes←RESP] status={} body={}",
-                    resp.getStatusCodeValue(), resp.getBody());
+            if (!raw.getStatusCode().is2xxSuccessful()) {
+                throw new RestClientException("Respuesta no exitosa: " + raw.getStatusCode());
+            }
 
-            HechoResponseDTO body = resp.getBody();
+            // parsear al DTO con un ObjectMapper tolerante
+            ObjectMapper mapper = new ObjectMapper()
+                    .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+            HechoResponseDTO body = mapper.readValue(raw.getBody(), HechoResponseDTO.class);
+
             if (body == null) {
-                log.info("[Solicitudes←RESP] cuerpo nulo para url={}", uri);
                 log.error("[Solicitudes←RESP] cuerpo nulo para url={}", uri);
                 throw new RestClientException("Respuesta vacía de Solicitudes para " + hechoId);
             }
 
-            // --- LOG del valor interpretado que usarás en tu lógica ---
             log.info("[Solicitudes←OK] hechoId={} activo={}", body.hechoId(), body.activo());
-            log.debug("[Solicitudes←OK] hechoId={} activo={}", body.hechoId(), body.activo());
-            return body.activo();
+
+            // devolver true solo si vino explícitamente true
+            return Boolean.TRUE.equals(body.activo());
 
         } catch (HttpClientErrorException.NotFound e) {
             log.warn("[Solicitudes←ERR] 404 Not Found url={} hechoId={}", uri, hechoId);
             throw new NoSuchElementException("No existe el hecho " + hechoId + " en Solicitudes");
-        } catch (RestClientException e) {
+        } catch (RestClientException | IOException e) {
             log.error("[Solicitudes←ERR] Falló GET url={} hechoId={} msg={}",
                     uri, hechoId, e.getMessage(), e);
-            throw e;
+            throw new RuntimeException("Error al consultar Solicitudes para " + hechoId, e);
         }
     }
+
 
 
     @Override
