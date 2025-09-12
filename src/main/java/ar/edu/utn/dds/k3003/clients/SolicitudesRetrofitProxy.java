@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import retrofit2.Call;
@@ -31,6 +32,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 @Slf4j
 @Component
+@Primary
 @Profile({"prod","default"})
 public class SolicitudesRetrofitProxy implements FachadaSolicitudes {
 
@@ -54,8 +56,9 @@ public class SolicitudesRetrofitProxy implements FachadaSolicitudes {
         String base = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
 
         // Logger HTTP (útil mientras depurás)
+
         HttpLoggingInterceptor httpLog = new HttpLoggingInterceptor(msg -> log.info("[HTTP] {}", msg));
-        httpLog.setLevel(HttpLoggingInterceptor.Level.BASIC);
+        httpLog.setLevel(HttpLoggingInterceptor.Level.BODY);
 
         OkHttpClient client = new OkHttpClient.Builder()
                 .connectTimeout(Duration.ofSeconds(10))
@@ -82,70 +85,46 @@ public class SolicitudesRetrofitProxy implements FachadaSolicitudes {
     // =========================
     @Override
     public boolean estaActivo(String hechoId) {
-        log.info("[Solicitudes→GET] hechoId={}", hechoId);
+        log.warn("[estaActivo] IN hechoId={}", hechoId); // visible aun con INFO
 
-        // pequeño backoff defensivo ante 429/503 (hasta 3 intentos)
-        int maxRetries = 3;
-        long baseDelayMs = 250;
-
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+        for (int attempt = 1; attempt <= 3; attempt++) {
             try {
                 Response<HechoResponseDTO> resp = api.getHechoActivo(hechoId).execute();
                 int code = resp.code();
+                log.warn("[estaActivo] attempt={} status={}", attempt, code);
 
                 if (resp.isSuccessful()) {
                     HechoResponseDTO body = resp.body();
-                    log.info("[Solicitudes←OK] status={} body={}", code, body);
-                    if (body == null) {
-                        throw new IOException("Respuesta sin cuerpo para hechoId=" + hechoId);
+                    log.warn("[estaActivo] OK body={}", body);
+                    return body != null && Boolean.TRUE.equals(body.activo());
+                } else {
+                    String err = resp.errorBody() != null ? resp.errorBody().string() : "(sin error body)";
+                    log.error("[estaActivo] FAIL status={} errorBody={}", code, err);
+
+                    if (code == 404) throw new NoSuchElementException("No existe el hecho " + hechoId);
+                    if (code == 429 || code == 503) {
+                        Thread.sleep(200L * (1L << (attempt - 1)));
+                        continue;
                     }
-                    // true solo si vino explícitamente true
-                    return Boolean.TRUE.equals(body.activo());
+                    throw new IOException("HTTP " + code + " " + err);
                 }
-
-                // 404 -> no existe el hecho en Solicitudes
-                if (code == 404) {
-                    log.warn("[Solicitudes←404] hechoId={}", hechoId);
-                    throw new NoSuchElementException("No existe el hecho " + hechoId + " en Solicitudes");
-                }
-
-                // 429/503 -> retry con backoff y jitter
-                if (code == 429 || code == 503) {
-                    long wait = (long) (baseDelayMs * Math.pow(2, attempt - 1))
-                            + ThreadLocalRandom.current().nextLong(50, 200);
-                    log.warn("[Solicitudes←{}] intento={} waitMs={} hechoId={}", code, attempt, wait, hechoId);
-                    Thread.sleep(wait);
-                    continue;
-                }
-
-                // Otros códigos: error duro
-                String errBody = resp.errorBody() != null ? resp.errorBody().string() : "(sin body)";
-                throw new IOException("HTTP " + code + " al consultar Solicitudes: " + errBody);
-
-            } catch (NoSuchElementException e404) {
-                throw e404; // propago tal cual
-            } catch (IOException e) {
-                // error de red u otro problema de IO → reintento salvo último intento
-                if (attempt == maxRetries) {
-                    log.error("[Solicitudes←ERR] agotados reintentos hechoId={} msg={}", hechoId, e.getMessage());
-                    throw new RuntimeException("Error al consultar Solicitudes para " + hechoId, e);
-                }
-                long wait = (long) (baseDelayMs * Math.pow(2, attempt - 1))
-                        + ThreadLocalRandom.current().nextLong(50, 200);
-                log.warn("[Solicitudes←IO] intento={} waitMs={} hechoId={} msg={}",
-                        attempt, wait, hechoId, e.getMessage());
-                try { Thread.sleep(wait); } catch (InterruptedException ie) {
+            } catch (NoSuchElementException e) {
+                log.error("[estaActivo] 404 hechoId={}", hechoId);
+                throw e;
+            } catch (Exception e) {
+                log.error("[estaActivo] EXC intento={} hechoId={} msg={}", attempt, hechoId, e.getMessage(), e);
+                if (attempt == 3) throw new RuntimeException("Fallo consultando Solicitudes", e);
+                try { Thread.sleep(200L * (1L << (attempt - 1))); } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     throw new RuntimeException("Backoff interrumpido", ie);
                 }
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException("Backoff interrumpido", ie);
             }
         }
         // no debería llegar
+        log.error("[estaActivo] OUT (sin resultado) hechoId={}", hechoId);
         return false;
     }
+
 
     // =========================
     // Stubs (no prioritarios)
