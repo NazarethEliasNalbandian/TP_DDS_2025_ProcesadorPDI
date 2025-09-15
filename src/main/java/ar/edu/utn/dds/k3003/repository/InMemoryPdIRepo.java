@@ -37,7 +37,8 @@ public class InMemoryPdIRepo implements PdIRepository {
         return a.getDescripcion().equals(b.getDescripcion())
                 && a.getLugar().equals(b.getLugar())
                 && a.getMomento().equals(b.getMomento())
-                && a.getContenido().equals(b.getContenido());
+                && a.getContenido().equals(b.getContenido())
+                && Objects.equals(a.getImageUrl(), b.getImageUrl());
     }
 
     @Override

@@ -1,8 +1,5 @@
 package ar.edu.utn.dds.k3003.app;
 
-import ar.edu.utn.dds.k3003.exceptions.domain.pdi.HechoInactivoException;
-import ar.edu.utn.dds.k3003.exceptions.domain.pdi.HechoInexistenteException;
-import ar.edu.utn.dds.k3003.exceptions.infrastructure.solicitudes.SolicitudesCommunicationException;
 import ar.edu.utn.dds.k3003.facades.FachadaProcesadorPDI;
 import ar.edu.utn.dds.k3003.facades.FachadaSolicitudes;
 import ar.edu.utn.dds.k3003.facades.dtos.PdIDTO;
@@ -15,7 +12,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClientException;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -27,7 +23,7 @@ public class Fachada implements FachadaProcesadorPDI {
 
     private FachadaSolicitudes fachadaSolicitudes;
 
-    @Getter private PdIRepository pdiRepository;
+    @Getter private final PdIRepository pdiRepository;
 
     private final AtomicLong generadorID = new AtomicLong(1);
 
@@ -54,26 +50,6 @@ public class Fachada implements FachadaProcesadorPDI {
         final String hechoId = pdiDTORecibido.hechoId();
 
         log.info("[ProcesadorPdI] PROCESAR {})...", hechoId);
-
-//        boolean activo;
-//
-//        try {
-//            log.info("[ProcesadorPdI] Consultando Solicitudes.estaActivo(hechoId={})...", hechoId);
-//            activo = fachadaSolicitudes.estaActivo(hechoId);
-//            log.info("[ProcesadorPdI] Solicitudes.estaActivo({}) -> {}", hechoId, activo);
-//
-//        } catch (java.util.NoSuchElementException e) {
-//            // El proxy tira esto si no hay solicitud para ese ID
-//            throw new HechoInexistenteException(hechoId, e);
-//        } catch (RestClientException e) {
-//            // Timeouts, 5xx, DNS, etc.
-//            throw new SolicitudesCommunicationException(
-//                    "Fallo al consultar 'Solicitudes' para hecho " + hechoId, e);
-//        }
-//
-//        if (!activo) {
-//            throw new HechoInactivoException(hechoId);
-//        }
 
         PdI nuevoPdI = recibirPdIDTO(pdiDTORecibido);
         System.out.println("ProcesadorPdI.Fachada.procesar() mapeado a entidad: " + nuevoPdI);
@@ -121,8 +97,7 @@ public class Fachada implements FachadaProcesadorPDI {
                                 () ->
                                         new NoSuchElementException(
                                                 "No se encontró el PdI con id: " + id));
-        PdIDTO pdiDTO = convertirADTO(pdi);
-        return pdiDTO;
+        return convertirADTO(pdi);
     }
 
     @Override
@@ -131,21 +106,20 @@ public class Fachada implements FachadaProcesadorPDI {
 
         System.out.println("Buscando por hechoId: " + hechoId + " - Encontrados: " + lista.size());
 
-        List<PdIDTO> listaPdiDTO =
-                lista.stream().map(this::convertirADTO).collect(Collectors.toList());
-
-        return listaPdiDTO;
+        return lista.stream().map(this::convertirADTO).collect(Collectors.toList());
     }
 
-    public PdIDTO convertirADTO(PdI pdi) {
+    private PdIDTO convertirADTO(PdI p) {
         return new PdIDTO(
-                String.valueOf(pdi.getId()),
-                pdi.getHechoId(),
-                pdi.getDescripcion(),
-                pdi.getLugar(),
-                pdi.getMomento(),
-                pdi.getContenido(),
-                pdi.getEtiquetas());
+                p.getId() == null ? null : String.valueOf(p.getId()),
+                p.getHechoId(),
+                p.getDescripcion(),
+                p.getLugar(),
+                p.getMomento(),
+                p.getContenido(),
+                p.getEtiquetas(),
+                p.getImageUrl()
+        );
     }
 
     public List<String> etiquetar(String contenido) {
@@ -165,15 +139,16 @@ public class Fachada implements FachadaProcesadorPDI {
         return etiquetas;
     }
 
-    public PdI recibirPdIDTO(PdIDTO pdiDTO) {
-        PdI nuevoPdI =
-                new PdI(
-                        pdiDTO.hechoId(),
-                        pdiDTO.descripcion(),
-                        pdiDTO.lugar(),
-                        pdiDTO.momento(),
-                        pdiDTO.contenido());
-        return nuevoPdI;
+    private PdI recibirPdIDTO(PdIDTO d) {
+        PdI p = new PdI();
+        p.setHechoId(d.hechoId());
+        p.setDescripcion(d.descripcion());
+        p.setLugar(d.lugar());
+        p.setMomento(d.momento());
+        p.setContenido(d.contenido());
+        p.setEtiquetas(d.etiquetas());
+        p.setImageUrl(d.imageUrl());
+        return p;
     }
 
         @Override

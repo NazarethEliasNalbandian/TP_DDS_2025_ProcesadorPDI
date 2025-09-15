@@ -7,14 +7,13 @@ import java.util.List;
 
 public record PdIResponseDTO(
         String id,
-
-        @JsonProperty("hecho_id")               // en la response siempre sale "hecho_id"
-        @JsonAlias({"hecho_id", "hechoId"})     // acepta ambas variantes al deserializar
-        String hechoId,
-
+        @JsonProperty("hecho_id") @JsonAlias({"hecho_id","hechoId"}) String hechoId,
         String descripcion,
         String lugar,
         LocalDateTime momento,
         String contenido,
-        List<String> etiquetas
+        List<String> etiquetas,
+
+        @JsonProperty("image_url")
+        String imageUrl // 👈 NUEVO
 ) {}

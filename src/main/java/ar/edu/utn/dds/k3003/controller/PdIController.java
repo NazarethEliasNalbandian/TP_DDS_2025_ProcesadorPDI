@@ -67,7 +67,8 @@ public class PdIController {
                 req.lugar(),
                 req.momento(),
                 req.contenido(),
-                req.etiquetas() == null ? List.of() : req.etiquetas()
+                req.etiquetas(),
+                req.imageUrl()
         );
         System.out.println("ProcesadorPdI mapea a PdIDTO: " + entrada);
 
@@ -112,7 +113,8 @@ public class PdIController {
                 p.lugar(),
                 p.momento(),
                 p.contenido(),
-                p.etiquetas()
+                p.etiquetas(),
+                p.imageUrl()
         );
     }
 }

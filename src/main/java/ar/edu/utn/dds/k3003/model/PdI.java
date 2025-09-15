@@ -27,20 +27,20 @@ public class PdI {
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime momento;
 
+    @Column(name = "image_url", length = 2048)
+    private String imageUrl;
+
     private String contenido;
 
     @ElementCollection private List<String> etiquetas;
 
-    public PdI(
-            String hechoId,
-            String descripcion,
-            String lugar,
-            LocalDateTime momento,
-            String contenido) {
+    public PdI(String hechoId, String descripcion, String lugar,
+               LocalDateTime momento, String contenido, String imageUrl) {
         this.hechoId = hechoId;
         this.descripcion = descripcion;
         this.lugar = lugar;
         this.momento = momento;
         this.contenido = contenido;
+        this.imageUrl = imageUrl; // 👈 nuevo
     }
 }
