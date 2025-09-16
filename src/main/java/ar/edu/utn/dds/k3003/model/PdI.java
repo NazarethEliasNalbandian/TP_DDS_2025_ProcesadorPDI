@@ -33,8 +33,6 @@ public class PdI {
 
     private String contenido;
 
-    @ElementCollection private List<String> etiquetas;
-
     // 🔽 Resultados del procesamiento de imagen
     @Lob
     private String ocrText;

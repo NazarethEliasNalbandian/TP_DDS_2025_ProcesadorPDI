@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/pdis")
@@ -40,6 +41,8 @@ public class PdIController {
         List<PdIDTO> lista = (hechoId != null)
                 ? fachadaProcesadorPdI.buscarPorHecho(hechoId)
                 : fachadaProcesadorPdI.pdis();
+
+        log.info("Resultado consulta PdIs → hechoId={} count={}", hechoId, lista.size());
 
         return ResponseEntity.ok(lista.stream().map(this::toResponse).toList());
     }

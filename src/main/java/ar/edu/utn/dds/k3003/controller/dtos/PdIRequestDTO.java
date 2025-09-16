@@ -11,7 +11,6 @@ public record PdIRequestDTO(
         String lugar,
         LocalDateTime momento,
         String contenido,
-        List<String> etiquetas,
 
         @JsonProperty("image_url")
         @JsonAlias({"image_url","imageUrl","url_imagen"})

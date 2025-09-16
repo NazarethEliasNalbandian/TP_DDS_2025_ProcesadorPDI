@@ -12,9 +12,6 @@ public record PdIDTO(
         LocalDateTime momento,
         String contenido,
 
-        @Deprecated
-        List<String> etiquetas,   // ⚠️ Deprecated en Entrega 4
-
         String imageUrl,          // URL única de imagen
 
         List<String> autoTags,    // etiquetas generadas automáticamente
@@ -24,8 +21,7 @@ public record PdIDTO(
         String lastError
 ) {
     public PdIDTO(String id, String hechoId) {
-        this(id, hechoId, null, null, null, null,
-                List.of(), null, List.of(), null,
+        this(id, hechoId, null, null, null, null, null, List.of(), null,
                 PdI.ProcessingState.PENDING, null, null);
     }
 }

@@ -95,9 +95,6 @@ public class Fachada implements FachadaProcesadorPDI {
 
         // Rama 1: con imageUrl → procesar async
         if (nuevoPdI.getImageUrl() != null && !nuevoPdI.getImageUrl().isBlank()) {
-            if (nuevoPdI.getEtiquetas() == null || nuevoPdI.getEtiquetas().isEmpty()) {
-                nuevoPdI.setEtiquetas(List.of("pendiente"));
-            }
             pdiRepository.save(nuevoPdI);
 
             if (tagService != null) {
@@ -109,8 +106,6 @@ public class Fachada implements FachadaProcesadorPDI {
             return convertirADTO(nuevoPdI);
         }
 
-        // Rama 2: sin imageUrl → clasificador por contenido
-        nuevoPdI.setEtiquetas(etiquetar(nuevoPdI.getContenido()));
         pdiRepository.save(nuevoPdI);
 
         return convertirADTO(nuevoPdI);
@@ -156,7 +151,6 @@ public class Fachada implements FachadaProcesadorPDI {
                 p.getLugar(),
                 p.getMomento(),
                 p.getContenido(),
-                p.getEtiquetas(),
                 p.getImageUrl(),
                 p.getAutoTags(),
                 p.getOcrText(),
@@ -184,7 +178,6 @@ public class Fachada implements FachadaProcesadorPDI {
         p.setLugar(d.lugar());
         p.setMomento(d.momento());
         p.setContenido(d.contenido());
-        p.setEtiquetas(d.etiquetas());
         p.setImageUrl(d.imageUrl());
         return p;
     }
