@@ -1,10 +1,11 @@
+// ar/edu/utn/dds/k3003/config/HttpAndAsyncConfig.java
 package ar.edu.utn.dds.k3003.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.TaskDecorator;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.client.RestTemplate;
@@ -17,14 +18,15 @@ public class HttpAndAsyncConfig {
 
     @Bean
     public RestTemplate restTemplate() {
-        var factory = new HttpComponentsClientHttpRequestFactory();
-        factory.setConnectTimeout(3000);
-        return new RestTemplate(factory);
+        var f = new SimpleClientHttpRequestFactory();
+        f.setConnectTimeout(3000);
+        f.setReadTimeout(5000);
+        return new RestTemplate(f);
     }
 
     @Bean
     public ObjectMapper objectMapper() {
-        return new ObjectMapper(); // Jackson por default
+        return new ObjectMapper();
     }
 
     @Bean(name = "pdiExecutor")
@@ -40,6 +42,6 @@ public class HttpAndAsyncConfig {
     }
 
     private TaskDecorator mdcTaskDecorator() {
-        return runnable -> runnable; // si querés propagar MDC, acá copiás el contexto
+        return runnable -> runnable;
     }
 }
