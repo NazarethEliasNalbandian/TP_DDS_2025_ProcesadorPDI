@@ -27,20 +27,6 @@ public class InMemoryPdIRepo implements PdIRepository {
         return diccionarioHechos.getOrDefault(hechoId, new ArrayList<>());
     }
 
-    public Optional<PdI> findPdI(PdI pdi) {
-        return diccionarioHechos.getOrDefault(pdi.getHechoId(), List.of()).stream()
-                .filter(p -> equals(p, pdi))
-                .findFirst();
-    }
-
-    private boolean equals(PdI a, PdI b) {
-        return a.getDescripcion().equals(b.getDescripcion())
-                && a.getLugar().equals(b.getLugar())
-                && a.getMomento().equals(b.getMomento())
-                && a.getContenido().equals(b.getContenido())
-                && Objects.equals(a.getImageUrl(), b.getImageUrl());
-    }
-
     @Override
     public List<PdI> findAll() {
         return new ArrayList<>(diccionarioPdI.values());

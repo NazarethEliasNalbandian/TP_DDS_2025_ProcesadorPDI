@@ -1,43 +1,38 @@
 package ar.edu.utn.dds.k3003.controller;
 
 import ar.edu.utn.dds.k3003.controller.dtos.ProcesamientoResponseDTO;
+import ar.edu.utn.dds.k3003.controller.dtos.PdIRequestDTO;
+import ar.edu.utn.dds.k3003.controller.dtos.PdIResponseDTO;
 import ar.edu.utn.dds.k3003.exceptions.domain.pdi.HechoInactivoException;
 import ar.edu.utn.dds.k3003.facades.FachadaProcesadorPDI;
 import ar.edu.utn.dds.k3003.facades.dtos.PdIDTO;
-import ar.edu.utn.dds.k3003.controller.dtos.PdIRequestDTO;
-import ar.edu.utn.dds.k3003.controller.dtos.PdIResponseDTO;
+import ar.edu.utn.dds.k3003.model.PdI;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/pdis")
 public class PdIController {
 
     private final FachadaProcesadorPDI fachadaProcesadorPdI;
-    private final ar.edu.utn.dds.k3003.facades.FachadaSolicitudes solicitudes; // <- agregar
-
-
-//    @Autowired
-//    public PdIController(FachadaProcesadorPDI fachadaProcesadorPdI) {
-//        this.fachadaProcesadorPdI = fachadaProcesadorPdI;
-//    }
+    private final ar.edu.utn.dds.k3003.facades.FachadaSolicitudes solicitudes;
 
     @Autowired
     public PdIController(
             FachadaProcesadorPDI fachadaProcesadorPdI,
-            @org.springframework.beans.factory.annotation.Qualifier("solicitudesRetrofitProxy")
+            @Qualifier("solicitudesRetrofitProxy")
             ar.edu.utn.dds.k3003.facades.FachadaSolicitudes solicitudes) {
         this.fachadaProcesadorPdI = fachadaProcesadorPdI;
         this.solicitudes = solicitudes;
     }
 
-    // GET /api/pdis?hecho={hechoId}
-    // GET /api/pdis
+    // GET /api/pdis?hecho={hechoId}  |  GET /api/pdis
     @GetMapping
     public ResponseEntity<List<PdIResponseDTO>> listarPdisPorHecho(
             @RequestParam(name = "hecho", required = false) String hechoId) {
@@ -53,13 +48,25 @@ public class PdIController {
     @GetMapping("/{id}")
     public ResponseEntity<PdIResponseDTO> obtenerPdiPorId(@PathVariable String id) {
         PdIDTO dto = fachadaProcesadorPdI.buscarPdIPorId(id);
+        if (dto == null) throw new NoSuchElementException("No se encontró el PdI con id=" + id);
         return ResponseEntity.ok(toResponse(dto));
     }
 
+    // POST /api/pdis
     @PostMapping
     public ResponseEntity<ProcesamientoResponseDTO> procesarNuevoPdi(@RequestBody PdIRequestDTO req) {
-        System.out.println("ProcesadorPdI ← Fuentes (req DTO): " + req);
+        // 1) Consenso estricto: si el hecho está inactivo, no procesamos
+        boolean activo = this.solicitudes.estaActivo(req.hechoId());
+        if (!activo) {
+            return ResponseEntity.ok(new ProcesamientoResponseDTO(
+                    null,
+                    PdI.ProcessingState.ERROR,
+                    List.of(),
+                    null
+            ));
+        }
 
+        // 2) Mapear request → PdIDTO (con campos nuevos inicializados)
         PdIDTO entrada = new PdIDTO(
                 null,
                 req.hechoId(),
@@ -67,35 +74,38 @@ public class PdIController {
                 req.lugar(),
                 req.momento(),
                 req.contenido(),
-                req.etiquetas(),
-                req.imageUrl()
+                req.etiquetas(),              // (deprecated) se pasa por compatibilidad
+                req.imageUrl(),
+                List.of(),                    // autoTags inicial vacío
+                null,                         // ocrText inicial
+                (req.imageUrl() != null && !req.imageUrl().isBlank())
+                        ? PdI.ProcessingState.PENDING   // si hay imagen, arranca PENDING (pipeline async)
+                        : PdI.ProcessingState.PROCESSED,// sin imagen, etiquetado inmediato por contenido
+                null,                         // processedAt
+                null                          // lastError
         );
-        System.out.println("ProcesadorPdI mapea a PdIDTO: " + entrada);
-
-        boolean activo = this.solicitudes.estaActivo(req.hechoId());
-        System.out.println("[Controller] estaActivo(" + req.hechoId() + ") = " + activo);
-
-        // si querés, validá acá mismo:
-        if (!activo) {
-            return ResponseEntity.ok(new ProcesamientoResponseDTO(null, false, List.of()));
-        }
 
         try {
+            // 3) Procesar en fachada (esta debe poblar los campos nuevos según su lógica)
             PdIDTO procesado = fachadaProcesadorPdI.procesar(entrada);
 
-            String pdiId = procesado.id() != null ? String.valueOf(procesado.id()) : null;
-            var etiquetas = (procesado.etiquetas() != null) ? procesado.etiquetas() : List.of();
-
-            // Procesada OK (nueva o duplicada)
-            return ResponseEntity.ok(new ProcesamientoResponseDTO(pdiId, true, (List<String>) etiquetas));
+            // 4) Armar respuesta con lo que devolvió la fachada (sin inventar nada)
+            return ResponseEntity.ok(new ProcesamientoResponseDTO(
+                    procesado.id(),
+                    procesado.processingState(),
+                    (procesado.autoTags() != null) ? procesado.autoTags() : List.of(),
+                    procesado.ocrText()
+            ));
 
         } catch (HechoInactivoException e) {
-            // 200 con procesada=false, etiquetas vacías y pdiId=null
-            System.out.println("ERRORRRRR: " + entrada);
-            return ResponseEntity.ok(new ProcesamientoResponseDTO(null, false, List.of()));
+            return ResponseEntity.ok(new ProcesamientoResponseDTO(
+                    null,
+                    PdI.ProcessingState.ERROR,
+                    List.of(),
+                    null
+            ));
         }
     }
-
 
     // DELETE /api/pdis/purge
     @DeleteMapping("/purge")
@@ -104,8 +114,9 @@ public class PdIController {
         return ResponseEntity.noContent().build();
     }
 
-    // ---------- mappers ----------
+    // ---------- mapper helper ----------
     private PdIResponseDTO toResponse(PdIDTO p) {
+        // Ahora leemos todo directamente del PdIDTO extendido
         return new PdIResponseDTO(
                 p.id(),
                 p.hechoId(),
@@ -113,8 +124,12 @@ public class PdIController {
                 p.lugar(),
                 p.momento(),
                 p.contenido(),
-                p.etiquetas(),
-                p.imageUrl()
+                (p.autoTags() != null && !p.autoTags().isEmpty()) ? p.autoTags() : p.etiquetas(), // fallback
+                p.imageUrl(),
+                (p.processingState() != null) ? p.processingState().name() : null,
+                p.ocrText(),
+                p.processedAt(),
+                p.lastError()
         );
     }
 }
