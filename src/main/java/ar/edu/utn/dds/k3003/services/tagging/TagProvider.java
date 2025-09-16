@@ -4,7 +4,7 @@ import ar.edu.utn.dds.k3003.model.PdI;
 import java.util.List;
 
 public interface TagProvider {
-    boolean supports(PdI pdi);               // p.ej., requiere imageUrl no vacía
+    boolean supports(PdI pdi);
     List<String> extractTags(PdI pdi) throws Exception;
     default String name() { return getClass().getSimpleName(); }
 }
