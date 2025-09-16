@@ -3,6 +3,8 @@ package ar.edu.utn.dds.k3003.services.tagging;
 import ar.edu.utn.dds.k3003.model.PdI;
 import ar.edu.utn.dds.k3003.repository.PdIRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +17,8 @@ import java.util.*;
 public class TagAggregatorService {
     private final List<TagProvider> providers;
     private final PdIRepository repo;
+    private static final Logger log = LoggerFactory.getLogger(TagAggregatorService.class);
+
 
     @Async // 🔁 si querés hacerlo async desde ya
     @Transactional
@@ -25,6 +29,7 @@ public class TagAggregatorService {
 
     @Transactional
     public void processImageTags(PdI p) {
+        log.info("[TagAggregator] start {}", p.getId());
         if (p.getImageUrl() == null || p.getImageUrl().isBlank()) return;
         if (p.getProcessingState() == PdI.ProcessingState.PROCESSED && p.getAutoTags() != null && !p.getAutoTags().isEmpty())
             return; // no reprocesar
@@ -54,5 +59,7 @@ public class TagAggregatorService {
             p.setLastError(e.getClass().getSimpleName() + ": " + e.getMessage());
         }
         repo.save(p);
+
+        log.info("[TagAggregator] done {} state={}", p.getId(), p.getProcessingState());
     }
 }
