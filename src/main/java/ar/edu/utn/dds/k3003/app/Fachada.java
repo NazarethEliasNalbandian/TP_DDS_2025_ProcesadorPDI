@@ -171,10 +171,16 @@ public class Fachada implements FachadaProcesadorPDI {
                 p.getLugar(),
                 p.getMomento(),
                 p.getContenido(),
-                p.getEtiquetas(),
-                p.getImageUrl()
+                p.getEtiquetas(),      // (deprecated) fallback
+                p.getImageUrl(),
+                p.getAutoTags(),       // 👈 nuevo
+                p.getOcrText(),        // 👈 nuevo
+                p.getProcessingState(),// 👈 nuevo
+                p.getProcessedAt(),    // 👈 nuevo
+                p.getLastError()       // 👈 nuevo
         );
     }
+
 
     public List<String> etiquetar(String contenido) {
         List<String> etiquetas = new ArrayList<>();
