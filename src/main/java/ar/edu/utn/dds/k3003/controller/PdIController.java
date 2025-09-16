@@ -42,7 +42,7 @@ public class PdIController {
                 ? fachadaProcesadorPdI.buscarPorHecho(hechoId)
                 : fachadaProcesadorPdI.pdis();
 
-        log.info("Resultado consulta PdIs → hechoId={} count={}", hechoId, lista.size());
+        // log.info("Resultado consulta PdIs → hechoId={} count={}", hechoId, lista.size());
 
         return ResponseEntity.ok(lista.stream().map(this::toResponse).toList());
     }
@@ -76,8 +76,7 @@ public class PdIController {
                 req.descripcion(),
                 req.lugar(),
                 req.momento(),
-                req.contenido(),
-                req.etiquetas(),              // (deprecated) se pasa por compatibilidad
+                req.contenido(),// (deprecated) se pasa por compatibilidad
                 req.imageUrl(),
                 List.of(),                    // autoTags inicial vacío
                 null,                         // ocrText inicial
@@ -127,7 +126,7 @@ public class PdIController {
                 p.lugar(),
                 p.momento(),
                 p.contenido(),
-                (p.autoTags() != null && !p.autoTags().isEmpty()) ? p.autoTags() : p.etiquetas(), // fallback
+                p.autoTags(), // fallback
                 p.imageUrl(),
                 (p.processingState() != null) ? p.processingState().name() : null,
                 p.ocrText(),
