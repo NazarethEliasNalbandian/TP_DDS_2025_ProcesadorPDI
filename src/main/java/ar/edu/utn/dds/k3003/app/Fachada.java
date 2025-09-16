@@ -6,8 +6,8 @@ import ar.edu.utn.dds.k3003.facades.dtos.PdIDTO;
 import ar.edu.utn.dds.k3003.model.PdI;
 import ar.edu.utn.dds.k3003.repository.InMemoryPdIRepo;
 import ar.edu.utn.dds.k3003.repository.PdIRepository;
-
 import ar.edu.utn.dds.k3003.services.tagging.TagAggregatorService;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,25 +36,18 @@ public class Fachada implements FachadaProcesadorPDI {
     @Getter
     private final PdIRepository pdiRepository;
 
-    // Servicio opcional para extraer tags desde imageUrl (lo inyectás si implementás el pipeline).
+    // Servicio opcional para extraer tags desde imageUrl
     private final @Nullable TagAggregatorService tagService;
 
     private final AtomicLong generadorID = new AtomicLong(1);
 
-    /** Constructor por defecto para tests/local (repo en memoria) */
+    /** Constructor por defecto para tests/local (repo en memoria). */
     protected Fachada() {
         this.pdiRepository = new InMemoryPdIRepo();
         this.tagService = null;
     }
 
-    /** Constructor solo con repo (sigue funcionando sin el pipeline de imagen) */
-    @Autowired
-    public Fachada(PdIRepository pdiRepository) {
-        this.pdiRepository = pdiRepository;
-        this.tagService = null;
-    }
-
-    /** Constructor completo (repo + pipeline de imagen) */
+    /** ÚNICO constructor autowireable (repo + servicio opcional). */
     @Autowired
     public Fachada(PdIRepository pdiRepository,
                    @Nullable TagAggregatorService tagAggregatorService) {
@@ -77,15 +70,13 @@ public class Fachada implements FachadaProcesadorPDI {
 
         log.info("[ProcesadorPdI] procesar() recibido hechoId={}, dto={}", hechoId, pdiDTORecibido);
 
-        // Validación mínima de imageUrl (si viene)
         if (!isValidImageUrl(pdiDTORecibido.imageUrl())) {
             throw new IllegalArgumentException("imageUrl inválida (debe ser http/https y con path de imagen)");
         }
 
         PdI nuevoPdI = recibirPdIDTO(pdiDTORecibido);
-        log.debug("Mapeado a entidad: {}", nuevoPdI);
 
-        // Buscar duplicado: ahora incluye imageUrl en la comparación
+        // Buscar duplicado
         Optional<PdI> yaProcesado =
                 pdiRepository.findByHechoId(nuevoPdI.getHechoId()).stream()
                         .filter(p ->
@@ -102,31 +93,25 @@ public class Fachada implements FachadaProcesadorPDI {
             return convertirADTO(yaProcesado.get());
         }
 
-        // Rama 1: hay imageUrl → guardamos y disparamos pipeline async (OCR + labels)
+        // Rama 1: con imageUrl → procesar async
         if (nuevoPdI.getImageUrl() != null && !nuevoPdI.getImageUrl().isBlank()) {
-            // Etiquetas iniciales “pendiente” (opcional), hasta que llegue el procesamiento
             if (nuevoPdI.getEtiquetas() == null || nuevoPdI.getEtiquetas().isEmpty()) {
                 nuevoPdI.setEtiquetas(List.of("pendiente"));
             }
             pdiRepository.save(nuevoPdI);
-            log.info("Guardado PdI id={} hechoId={} con imageUrl. Disparando procesamiento async...",
-                    nuevoPdI.getId(), nuevoPdI.getHechoId());
 
             if (tagService != null) {
-                // ⚠️ requiere @EnableAsync en tu @SpringBootApplication
                 tagService.processImageTagsAsync(nuevoPdI.getId());
             } else {
-                log.warn("TagAggregatorService no disponible: no se procesará imageUrl de forma automática.");
+                log.warn("TagAggregatorService no disponible: no se procesará imageUrl.");
             }
 
             return convertirADTO(nuevoPdI);
         }
 
-        // Rama 2: no hay imageUrl → clasificador simple por contenido (legacy)
+        // Rama 2: sin imageUrl → clasificador por contenido
         nuevoPdI.setEtiquetas(etiquetar(nuevoPdI.getContenido()));
         pdiRepository.save(nuevoPdI);
-        log.info("Guardado PdI id={} hechoId={} (sin imageUrl) con etiquetas={}",
-                nuevoPdI.getId(), nuevoPdI.getHechoId(), nuevoPdI.getEtiquetas());
 
         return convertirADTO(nuevoPdI);
     }
@@ -141,14 +126,15 @@ public class Fachada implements FachadaProcesadorPDI {
 
     @Override
     public List<PdIDTO> buscarPorHecho(String hechoId) {
-        List<PdI> lista = pdiRepository.findByHechoId(hechoId);
-        log.info("buscarPorHecho hechoId={} → {} resultados", hechoId, lista.size());
-        return lista.stream().map(this::convertirADTO).collect(Collectors.toList());
+        return pdiRepository.findByHechoId(hechoId)
+                .stream()
+                .map(this::convertirADTO)
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<PdIDTO> pdis() {
-        return this.pdiRepository.findAll()
+        return pdiRepository.findAll()
                 .stream()
                 .map(this::convertirADTO)
                 .toList();
@@ -157,11 +143,10 @@ public class Fachada implements FachadaProcesadorPDI {
     @Override
     public void borrarTodo() {
         pdiRepository.deleteAll();
-        generadorID.set(1); // opcional: reiniciar IDs en memoria
-        log.warn("Se borraron todos los PdIs");
+        generadorID.set(1);
     }
 
-    // =================== Helpers ===================
+    // ---------- Helpers ----------
 
     private PdIDTO convertirADTO(PdI p) {
         return new PdIDTO(
@@ -171,16 +156,15 @@ public class Fachada implements FachadaProcesadorPDI {
                 p.getLugar(),
                 p.getMomento(),
                 p.getContenido(),
-                p.getEtiquetas(),      // (deprecated) fallback
+                p.getEtiquetas(),
                 p.getImageUrl(),
-                p.getAutoTags(),       // 👈 nuevo
-                p.getOcrText(),        // 👈 nuevo
-                p.getProcessingState(),// 👈 nuevo
-                p.getProcessedAt(),    // 👈 nuevo
-                p.getLastError()       // 👈 nuevo
+                p.getAutoTags(),
+                p.getOcrText(),
+                p.getProcessingState(),
+                p.getProcessedAt(),
+                p.getLastError()
         );
     }
-
 
     public List<String> etiquetar(String contenido) {
         List<String> etiquetas = new ArrayList<>();
@@ -206,13 +190,12 @@ public class Fachada implements FachadaProcesadorPDI {
     }
 
     private boolean isValidImageUrl(String url) {
-        if (url == null || url.isBlank()) return true; // es opcional
+        if (url == null || url.isBlank()) return true;
         try {
             URI u = URI.create(url);
             String scheme = Optional.ofNullable(u.getScheme()).orElse("").toLowerCase(Locale.ROOT);
             if (!scheme.equals("http") && !scheme.equals("https")) return false;
             String path = Optional.ofNullable(u.getPath()).orElse("").toLowerCase(Locale.ROOT);
-            // Permitimos extensiones comunes; si el CDN no usa extensión, igual la aceptamos.
             return path.isEmpty() || path.endsWith(".jpg") || path.endsWith(".jpeg")
                     || path.endsWith(".png") || path.endsWith(".gif") || path.endsWith(".webp");
         } catch (Exception e) {
