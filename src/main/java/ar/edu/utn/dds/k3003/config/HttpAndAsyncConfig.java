@@ -24,11 +24,6 @@ public class HttpAndAsyncConfig {
         return new RestTemplate(f);
     }
 
-    @Bean
-    public ObjectMapper objectMapper() {
-        return new ObjectMapper();
-    }
-
     @Bean(name = "pdiExecutor")
     public Executor pdiExecutor() {
         ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
