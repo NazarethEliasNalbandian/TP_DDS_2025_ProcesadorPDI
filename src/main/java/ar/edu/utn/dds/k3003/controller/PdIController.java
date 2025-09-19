@@ -126,7 +126,7 @@ public class PdIController {
                 p.lugar(),
                 p.momento(),
                 p.contenido(),
-                p.autoTags(), // fallback
+                p.autoTags(),
                 p.imageUrl(),
                 (p.processingState() != null) ? p.processingState().name() : null,
                 p.ocrText(),
