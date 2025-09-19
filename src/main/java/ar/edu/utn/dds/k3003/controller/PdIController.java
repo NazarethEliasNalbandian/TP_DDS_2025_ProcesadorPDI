@@ -8,6 +8,8 @@ import ar.edu.utn.dds.k3003.facades.FachadaProcesadorPDI;
 import ar.edu.utn.dds.k3003.facades.dtos.PdIDTO;
 import ar.edu.utn.dds.k3003.model.PdI;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/pdis")
@@ -23,6 +24,7 @@ public class PdIController {
 
     private final FachadaProcesadorPDI fachadaProcesadorPdI;
     private final ar.edu.utn.dds.k3003.facades.FachadaSolicitudes solicitudes;
+    private static final Logger log = LoggerFactory.getLogger(PdIController.class);
 
     @Autowired
     public PdIController(
@@ -58,9 +60,14 @@ public class PdIController {
     // POST /api/pdis
     @PostMapping
     public ResponseEntity<ProcesamientoResponseDTO> procesarNuevoPdi(@RequestBody PdIRequestDTO req) {
-        // 1) Consenso estricto: si el hecho está inactivo, no procesamos
+        log.info("[ProcesadorPdI] Nuevo request recibido: hechoId={}, descripcion={}, imageUrl={}",
+                req.hechoId(), req.descripcion(), req.imageUrl());
+
         boolean activo = this.solicitudes.estaActivo(req.hechoId());
+        log.debug("[ProcesadorPdI] Estado del hechoId={} → activo={}", req.hechoId(), activo);
+
         if (!activo) {
+            log.warn("[ProcesadorPdI] Hecho {} inactivo, abortando procesamiento", req.hechoId());
             return ResponseEntity.ok(new ProcesamientoResponseDTO(
                     null,
                     PdI.ProcessingState.ERROR,
@@ -69,29 +76,29 @@ public class PdIController {
             ));
         }
 
-        // 2) Mapear request → PdIDTO (con campos nuevos inicializados)
         PdIDTO entrada = new PdIDTO(
                 null,
                 req.hechoId(),
                 req.descripcion(),
                 req.lugar(),
                 req.momento(),
-                req.contenido(),// (deprecated) se pasa por compatibilidad
+                req.contenido(),
                 req.imageUrl(),
-                List.of(),                    // autoTags inicial vacío
-                null,                         // ocrText inicial
+                List.of(),
+                null,
                 (req.imageUrl() != null && !req.imageUrl().isBlank())
-                        ? PdI.ProcessingState.PENDING   // si hay imagen, arranca PENDING (pipeline async)
-                        : PdI.ProcessingState.PROCESSED,// sin imagen, etiquetado inmediato por contenido
-                null,                         // processedAt
-                null                          // lastError
+                        ? PdI.ProcessingState.PENDING
+                        : PdI.ProcessingState.PROCESSED,
+                null,
+                null
         );
+        log.debug("[ProcesadorPdI] DTO inicial armado: {}", entrada);
 
         try {
-            // 3) Procesar en fachada (esta debe poblar los campos nuevos según su lógica)
             PdIDTO procesado = fachadaProcesadorPdI.procesar(entrada);
+            log.info("[ProcesadorPdI] Procesamiento exitoso para hechoId={} → id={}, state={}, tags={}",
+                    procesado.hechoId(), procesado.id(), procesado.processingState(), procesado.autoTags());
 
-            // 4) Armar respuesta con lo que devolvió la fachada (sin inventar nada)
             return ResponseEntity.ok(new ProcesamientoResponseDTO(
                     procesado.id(),
                     procesado.processingState(),
@@ -100,12 +107,16 @@ public class PdIController {
             ));
 
         } catch (HechoInactivoException e) {
+            log.error("[ProcesadorPdI] Hecho {} marcado como inactivo en fachada", req.hechoId(), e);
             return ResponseEntity.ok(new ProcesamientoResponseDTO(
                     null,
                     PdI.ProcessingState.ERROR,
                     List.of(),
                     null
             ));
+        } catch (Exception e) {
+            log.error("[ProcesadorPdI] Error inesperado procesando hechoId={}: {}", req.hechoId(), e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
         }
     }
 
