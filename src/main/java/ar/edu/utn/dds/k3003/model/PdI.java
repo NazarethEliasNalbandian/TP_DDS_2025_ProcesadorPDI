@@ -37,8 +37,8 @@ public class PdI {
     @Lob
     private String ocrText;
 
-    @ElementCollection
-    @CollectionTable(name = "pdi_auto_tags", joinColumns = @JoinColumn(name = "pdi_id"))
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "pdi_auto_tags")
     @Column(name = "tag")
     private List<String> autoTags = new ArrayList<>();
 
@@ -58,5 +58,10 @@ public class PdI {
         this.momento = momento;
         this.contenido = contenido;
         this.imageUrl = imageUrl; // 👈 nuevo
+    }
+
+    public void setAutoTags(List<String> tags) {
+        this.autoTags.clear();
+        if (tags != null) this.autoTags.addAll(tags);
     }
 }

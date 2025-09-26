@@ -13,7 +13,7 @@ public class HttpAndAsyncConfig {
     public RestTemplate restTemplate() {
         var f = new SimpleClientHttpRequestFactory();
         f.setConnectTimeout(3000);
-        f.setReadTimeout(5000);
+        f.setReadTimeout(10000);
         return new RestTemplate(f);
     }
 }

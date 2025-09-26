@@ -65,16 +65,18 @@ public class TagAggregatorService {
             // ---- Image Labeling ----
             if (imgLblEnabled && labelProvider.supports(p)) {
                 try {
-                    List<String> labels = labelProvider.extractTags(p); // setea autoTags
+                    List<String> labels = labelProvider.extractTags(p);
+                    // actualizar "en sitio", sin reemplazar la colección
+                    p.getAutoTags().clear();
+                    if (labels != null) p.getAutoTags().addAll(labels);
                     log.info("[TagAggregator] Labeling OK, size={}", (labels == null ? 0 : labels.size()));
                     anySuccess = true;
                 } catch (Exception e) {
                     log.warn("[TagAggregator] Labeling FAILED: {}", firstLine(e), e);
                     appendError(errorBag, "imglbl: " + firstLine(e));
-                    p.setAutoTags(List.of());
+                    // limpiar, pero sin List.of()
+                    p.getAutoTags().clear();
                 }
-            } else {
-                log.info("[TagAggregator] Image labeling disabled or not supported");
             }
 
             // ---- Estado final ----
