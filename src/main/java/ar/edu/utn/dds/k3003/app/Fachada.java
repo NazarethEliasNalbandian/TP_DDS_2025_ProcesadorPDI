@@ -61,54 +61,33 @@ public class Fachada implements FachadaProcesadorPDI {
     }
 
     @Override
-    public PdIDTO procesar(PdIDTO pdiDTORecibido) {
-        Objects.requireNonNull(pdiDTORecibido, "PdIDTO requerido");
-        final String hechoId = pdiDTORecibido.hechoId();
-        if (hechoId == null || hechoId.isBlank()) {
-            throw new IllegalArgumentException("hechoId requerido en PdIDTO");
+    public PdIDTO procesar(PdIDTO entrada) {
+        // map DTO -> entity inicial
+        PdI p = new PdI();
+        p.setHechoId(entrada.hechoId());
+        p.setDescripcion(entrada.descripcion());
+        p.setLugar(entrada.lugar());
+        p.setMomento(entrada.momento());
+        p.setContenido(entrada.contenido());
+        p.setImageUrl(entrada.imageUrl());
+        p.setProcessingState(
+                (entrada.imageUrl() != null && !entrada.imageUrl().isBlank())
+                        ? PdI.ProcessingState.PROCESSING // o PENDING si querés, pero lo vamos a completar acá mismo
+                        : PdI.ProcessingState.PROCESSED
+        );
+
+        p = pdiRepository.save(p);
+
+        // si hay imagen, ejecutar pipeline sincrónico
+        if (p.getImageUrl() != null && !p.getImageUrl().isBlank()) {
+            p = tagService.processImageTags(p.getId()); // <--- ahora bloqueante
+        } else {
+            // sin imagen, dejalo PROCESSED y sin autoTags/ocrText
+            p.setProcessedAt(LocalDateTime.now());
+            p = pdiRepository.save(p);
         }
 
-        log.info("[ProcesadorPdI] procesar() recibido hechoId={}, dto={}", hechoId, pdiDTORecibido);
-
-        if (!isValidImageUrl(pdiDTORecibido.imageUrl())) {
-            throw new IllegalArgumentException("imageUrl inválida (debe ser http/https y con path de imagen)");
-        }
-
-        PdI nuevoPdI = recibirPdIDTO(pdiDTORecibido);
-
-        // Buscar duplicado
-        Optional<PdI> yaProcesado =
-                pdiRepository.findByHechoId(nuevoPdI.getHechoId()).stream()
-                        .filter(p ->
-                                Objects.equals(p.getDescripcion(), nuevoPdI.getDescripcion()) &&
-                                        Objects.equals(p.getLugar(), nuevoPdI.getLugar()) &&
-                                        Objects.equals(p.getMomento(), nuevoPdI.getMomento()) &&
-                                        Objects.equals(p.getContenido(), nuevoPdI.getContenido()) &&
-                                        Objects.equals(p.getImageUrl(), nuevoPdI.getImageUrl()))
-                        .findFirst();
-
-        if (yaProcesado.isPresent()) {
-            log.info("PdI duplicado detectado para hechoId={} → se reutiliza el existente id={}",
-                    hechoId, yaProcesado.get().getId());
-            return convertirADTO(yaProcesado.get());
-        }
-
-        // Rama 1: con imageUrl → procesar async
-        if (nuevoPdI.getImageUrl() != null && !nuevoPdI.getImageUrl().isBlank()) {
-            pdiRepository.save(nuevoPdI);
-
-            if (tagService != null) {
-                tagService.processImageTagsAsync(nuevoPdI.getId());
-            } else {
-                log.warn("TagAggregatorService no disponible: no se procesará imageUrl.");
-            }
-
-            return convertirADTO(nuevoPdI);
-        }
-
-        pdiRepository.save(nuevoPdI);
-
-        return convertirADTO(nuevoPdI);
+        return convertirADTO(p);
     }
 
     @Override

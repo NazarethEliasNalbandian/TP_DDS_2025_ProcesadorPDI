@@ -64,10 +64,10 @@ public class PdIController {
                 req.hechoId(), req.descripcion(), req.imageUrl());
 
         boolean activo = this.solicitudes.estaActivo(req.hechoId());
-        log.debug("[ProcesadorPdI] Estado del hechoId={} → activo={}", req.hechoId(), activo);
+        log.info("[ProcesadorPdI] Estado del hechoId={} → activo={}", req.hechoId(), activo);
 
         if (!activo) {
-            log.warn("[ProcesadorPdI] Hecho {} inactivo, abortando procesamiento", req.hechoId());
+            log.info("[ProcesadorPdI] Hecho {} inactivo, abortando procesamiento", req.hechoId());
             return ResponseEntity.ok(new ProcesamientoResponseDTO(
                     null,
                     PdI.ProcessingState.ERROR,
@@ -92,7 +92,7 @@ public class PdIController {
                 null,
                 null
         );
-        log.debug("[ProcesadorPdI] DTO inicial armado: {}", entrada);
+        log.info("[ProcesadorPdI] DTO inicial armado: {}", entrada);
 
         try {
             PdIDTO procesado = fachadaProcesadorPdI.procesar(entrada);
@@ -107,7 +107,7 @@ public class PdIController {
             ));
 
         } catch (HechoInactivoException e) {
-            log.error("[ProcesadorPdI] Hecho {} marcado como inactivo en fachada", req.hechoId(), e);
+            log.info("[ProcesadorPdI] Hecho {} marcado como inactivo en fachada", req.hechoId(), e);
             return ResponseEntity.ok(new ProcesamientoResponseDTO(
                     null,
                     PdI.ProcessingState.ERROR,
@@ -115,7 +115,7 @@ public class PdIController {
                     null
             ));
         } catch (Exception e) {
-            log.error("[ProcesadorPdI] Error inesperado procesando hechoId={}: {}", req.hechoId(), e.getMessage(), e);
+            log.info("[ProcesadorPdI] Error inesperado procesando hechoId={}: {}", req.hechoId(), e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
     }

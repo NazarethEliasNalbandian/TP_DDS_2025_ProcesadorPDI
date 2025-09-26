@@ -59,7 +59,8 @@ public class SolicitudesRetrofitProxy implements FachadaSolicitudes {
 
         OkHttpClient client = new OkHttpClient.Builder()
                 .connectTimeout(Duration.ofSeconds(10))
-                .writeTimeout(Duration.ofSeconds(20))
+                .writeTimeout(Duration.ofSeconds(30))
+                .callTimeout(Duration.ofSeconds(30))
                 .readTimeout(Duration.ofSeconds(30))
                 .retryOnConnectionFailure(true)
                 .addInterceptor(httpLog)

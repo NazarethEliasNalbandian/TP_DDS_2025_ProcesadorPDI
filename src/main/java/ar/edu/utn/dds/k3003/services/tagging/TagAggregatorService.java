@@ -22,11 +22,8 @@ public class TagAggregatorService {
     private final OcrTagProvider ocrProvider;
     private final ImageLabelProvider labelProvider;
 
-    @Value("${features.ocr.enabled:true}")
-    private boolean ocrEnabled;
-
-    @Value("${features.imglbl.enabled:true}")
-    private boolean imgLblEnabled;
+    @Value("${features.ocr.enabled:true}")   private boolean ocrEnabled;
+    @Value("${features.imglbl.enabled:true}") private boolean imgLblEnabled;
 
     public TagAggregatorService(PdIRepository repo, OcrTagProvider ocrProvider, ImageLabelProvider labelProvider) {
         this.repo = repo;
@@ -34,17 +31,17 @@ public class TagAggregatorService {
         this.labelProvider = labelProvider;
     }
 
-    @Async("pdiExecutor")
-    public void processImageTagsAsync(Long pdiId) {
+    /** Ahora SINCRÓNICO */
+    public PdI processImageTags(Long pdiId) {
         long t0 = System.currentTimeMillis();
         MDC.put("pdiId", String.valueOf(pdiId));
 
         log.info("[TagAggregator] BEGIN pdiId={}", pdiId);
         try {
-            PdI p = repo.findById(pdiId).orElseThrow(() ->
-                    new NoSuchElementException("PdI not found: " + pdiId));
-            String url = p.getImageUrl();
-            log.info("[TagAggregator] imageUrl={}", url);
+            PdI p = repo.findById(pdiId)
+                    .orElseThrow(() -> new NoSuchElementException("PdI not found: " + pdiId));
+
+            log.info("[TagAggregator] imageUrl={}", p.getImageUrl());
 
             boolean anySuccess = false;
             StringBuilder errorBag = new StringBuilder();
@@ -52,7 +49,7 @@ public class TagAggregatorService {
             // ---- OCR ----
             if (ocrEnabled && ocrProvider.supports(p)) {
                 try {
-                    var tokens = ocrProvider.extractTags(p);
+                    var tokens = ocrProvider.extractTags(p); // setea ocrText y/o etiquetas internas
                     log.info("[TagAggregator] OCR OK, lenText={}, tokens={}",
                             (p.getOcrText() == null ? 0 : p.getOcrText().length()),
                             (tokens == null ? 0 : tokens.size()));
@@ -68,7 +65,7 @@ public class TagAggregatorService {
             // ---- Image Labeling ----
             if (imgLblEnabled && labelProvider.supports(p)) {
                 try {
-                    List<String> labels = labelProvider.extractTags(p);
+                    List<String> labels = labelProvider.extractTags(p); // setea autoTags
                     log.info("[TagAggregator] Labeling OK, size={}", (labels == null ? 0 : labels.size()));
                     anySuccess = true;
                 } catch (Exception e) {
@@ -89,38 +86,30 @@ public class TagAggregatorService {
                 p.setProcessingState(PdI.ProcessingState.ERROR);
                 p.setLastError(isEmpty(errorBag) ? "pipeline: no step succeeded" : errorBag.toString());
             }
-            repo.save(p);
 
+            PdI saved = repo.save(p);
             log.info("[TagAggregator] END pdiId={} state={} in {}ms",
-                    pdiId, p.getProcessingState(), (System.currentTimeMillis() - t0));
+                    pdiId, saved.getProcessingState(), (System.currentTimeMillis() - t0));
+
+            return saved;
+
         } catch (Exception fatal) {
             log.error("[TagAggregator] FATAL pdiId={}: {}", pdiId, firstLine(fatal), fatal);
-            try {
-                repo.findById(pdiId).ifPresent(p -> {
-                    p.setProcessingState(PdI.ProcessingState.ERROR);
-                    p.setLastError(firstLine(fatal));
-                    p.setProcessedAt(LocalDateTime.now());
-                    repo.save(p);
-                });
-            } catch (Exception ignore) {
-                log.warn("[TagAggregator] cannot persist fatal error: {}", firstLine(ignore));
-            }
+            // intento de persistir estado de error
+            repo.findById(pdiId).ifPresent(p -> {
+                p.setProcessingState(PdI.ProcessingState.ERROR);
+                p.setLastError(firstLine(fatal));
+                p.setProcessedAt(LocalDateTime.now());
+                repo.save(p);
+            });
+            throw fatal; // re-lanzamos para que la capa superior sepa que falló
         } finally {
             MDC.clear();
         }
     }
 
-    private static void appendError(StringBuilder sb, String msg) {
-        if (sb.length() > 0) sb.append(" | ");
-        sb.append(msg);
-    }
-
-    private static boolean isEmpty(CharSequence cs) {
-        return cs == null || cs.length() == 0;
-    }
-
-    private static String firstLine(Throwable e) {
-        String m = e.getMessage();
-        return (m == null) ? e.getClass().getSimpleName() : m.split("\\R", 2)[0];
-    }
+    private static void appendError(StringBuilder sb, String msg) { if (sb.length() > 0) sb.append(" | "); sb.append(msg); }
+    private static boolean isEmpty(CharSequence cs) { return cs == null || cs.length() == 0; }
+    private static String firstLine(Throwable e) { String m = e.getMessage(); return (m == null) ? e.getClass().getSimpleName() : m.split("\\R", 2)[0]; }
 }
+
