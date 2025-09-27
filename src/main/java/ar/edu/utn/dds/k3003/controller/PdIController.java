@@ -71,8 +71,7 @@ public class PdIController {
             return ResponseEntity.ok(new ProcesamientoResponseDTO(
                     null,
                     PdI.ProcessingState.ERROR,
-                    List.of(),
-                    null
+                    List.of()
             ));
         }
 
@@ -102,8 +101,7 @@ public class PdIController {
             return ResponseEntity.ok(new ProcesamientoResponseDTO(
                     procesado.id(),
                     procesado.processingState(),
-                    (procesado.autoTags() != null) ? procesado.autoTags() : List.of(),
-                    procesado.ocrText()
+                    (procesado.autoTags() != null) ? procesado.autoTags() : List.of()
             ));
 
         } catch (HechoInactivoException e) {
@@ -111,8 +109,7 @@ public class PdIController {
             return ResponseEntity.ok(new ProcesamientoResponseDTO(
                     null,
                     PdI.ProcessingState.ERROR,
-                    List.of(),
-                    null
+                    List.of()
             ));
         } catch (Exception e) {
             log.info("[ProcesadorPdI] Error inesperado procesando hechoId={}: {}", req.hechoId(), e.getMessage(), e);
