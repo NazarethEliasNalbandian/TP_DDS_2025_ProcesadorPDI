@@ -15,4 +15,6 @@ public interface PdIRepository {
     List<PdI> findAll();
 
     void deleteAll();
+
+    PdI findByHechoIdAndImageUrl(String hechoId, String imageUrl);
 }

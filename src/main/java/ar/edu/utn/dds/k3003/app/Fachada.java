@@ -62,6 +62,15 @@ public class Fachada implements FachadaProcesadorPDI {
 
     @Override
     public PdIDTO procesar(PdIDTO entrada) {
+
+        PdI existente = pdiRepository
+                .findByHechoIdAndImageUrl(entrada.hechoId(), entrada.imageUrl());
+
+        if (existente != null) {
+            return convertirADTO(existente); // evitar reprocesar
+        }
+
+
         // map DTO -> entity inicial
         PdI p = new PdI();
         p.setHechoId(entrada.hechoId());
