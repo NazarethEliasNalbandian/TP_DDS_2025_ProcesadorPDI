@@ -2,116 +2,106 @@ package ar.edu.utn.dds.k3003.services.tagging;
 
 import ar.edu.utn.dds.k3003.model.PdI;
 import ar.edu.utn.dds.k3003.repository.PdIRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Async;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class TagAggregatorService {
 
-    private static final Logger log = LoggerFactory.getLogger(TagAggregatorService.class);
+    private final List<TagProvider> providers;
+    private final PdIRepository pdiRepository; // <-- ajustá el nombre si tu repo difiere
 
-    private final PdIRepository repo;
-    private final OcrTagProvider ocrProvider;
-    private final ImageLabelProvider labelProvider;
-
-    @Value("${features.ocr.enabled:true}")   private boolean ocrEnabled;
-    @Value("${features.imglbl.enabled:true}") private boolean imgLblEnabled;
-
-    public TagAggregatorService(PdIRepository repo, OcrTagProvider ocrProvider, ImageLabelProvider labelProvider) {
-        this.repo = repo;
-        this.ocrProvider = ocrProvider;
-        this.labelProvider = labelProvider;
+    public TagAggregatorService(List<TagProvider> providers, PdIRepository pdiRepository) {
+        List<TagProvider> copy = new ArrayList<>(providers != null ? providers : List.of());
+        AnnotationAwareOrderComparator.sort(copy);        // respeta @Order/Ordered
+        this.providers = Collections.unmodifiableList(copy);
+        this.pdiRepository = Objects.requireNonNull(pdiRepository, "PdIRepository no puede ser null");
     }
 
-    /** Ahora SINCRÓNICO */
+    /**
+     * Busca el PdI, ejecuta todos los TagProvider soportados y persiste el PdI con las nuevas tags.
+     * - Evita duplicados (conserva orden de llegada).
+     * - Loguea errores por provider pero no corta la ejecución.
+     * - Devuelve el PdI actualizado.
+     */
+    @Transactional
     public PdI processImageTags(Long pdiId) {
-        long t0 = System.currentTimeMillis();
-        MDC.put("pdiId", String.valueOf(pdiId));
+        Objects.requireNonNull(pdiId, "pdiId no puede ser null");
 
-        log.info("[TagAggregator] BEGIN pdiId={}", pdiId);
+        PdI pdi = pdiRepository.findById(pdiId)
+                .orElseThrow(() -> new NoSuchElementException("No existe PdI con id=" + pdiId));
+
+        // conjunto ordenado: evita duplicados y preserva orden
+        Set<String> aggregated = new LinkedHashSet<>();
+
+        for (TagProvider provider : providers) {
+            String pname = safeName(provider);
+
+            if (!safeSupports(provider, pdi)) {
+                log.debug("Provider {} no soporta el PdI id={}, se omite.", pname, pdiId);
+                continue;
+            }
+
+            try {
+                List<String> tags = Optional.ofNullable(provider.extractTags(pdi)).orElse(List.of())
+                        .stream()
+                        .filter(Objects::nonNull)
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .collect(Collectors.toList());
+
+                if (!tags.isEmpty()) {
+                    log.debug("Provider {} devolvió {} tag(s) para PdI {}.", pname, tags.size(), pdiId);
+                    aggregated.addAll(tags);
+                } else {
+                    log.debug("Provider {} no devolvió tags para PdI {}.", pname, pdiId);
+                }
+            } catch (Exception ex) {
+                log.warn("Fallo en provider {} para PdI {}: {} - {}",
+                        pname, pdiId, ex.getClass().getSimpleName(), ex.getMessage());
+                // seguimos con los demás providers
+            }
+        }
+
+        // ==== Actualización del PdI ====
+        // Opción A (si existe un método acumulativo):
         try {
-            PdI p = repo.findById(pdiId)
-                    .orElseThrow(() -> new NoSuchElementException("PdI not found: " + pdiId));
+            pdi.setAutoTags((List<String>) aggregated); // <-- usa tu método real (addTags/addAll/etc.)
+        } catch (NoSuchMethodError | UnsupportedOperationException e) {
+            // Opción B (si solo hay setter):
+            // pdi.setTags(new ArrayList<>(aggregated));
+            throw e; // Dejá la opción que corresponda a tu modelo y eliminá la otra.
+        }
 
-            log.info("[TagAggregator] imageUrl={}", p.getImageUrl());
+        // persistimos y devolvemos el PdI actualizado
+        PdI actualizado = pdiRepository.save(pdi);
+        log.debug("PdI {} actualizado con {} tag(s).", pdiId, aggregated.size());
+        return actualizado;
+    }
 
-            boolean anySuccess = false;
-            StringBuilder errorBag = new StringBuilder();
+    /* ===================== Helpers ===================== */
 
-            // ---- OCR ----
-            if (ocrEnabled && ocrProvider.supports(p)) {
-                try {
-                    var tokens = ocrProvider.extractTags(p); // setea ocrText y/o etiquetas internas
-                    log.info("[TagAggregator] OCR OK, lenText={}, tokens={}",
-                            (p.getOcrText() == null ? 0 : p.getOcrText().length()),
-                            (tokens == null ? 0 : tokens.size()));
-                    anySuccess = true;
-                } catch (Exception e) {
-                    log.warn("[TagAggregator] OCR FAILED: {}", firstLine(e), e);
-                    appendError(errorBag, "ocr: " + firstLine(e));
-                }
-            } else {
-                log.info("[TagAggregator] OCR disabled or not supported");
-            }
-
-            // ---- Image Labeling ----
-            if (imgLblEnabled && labelProvider.supports(p)) {
-                try {
-                    List<String> labels = labelProvider.extractTags(p);
-                    // actualizar "en sitio", sin reemplazar la colección
-                    p.getAutoTags().clear();
-                    if (labels != null) p.getAutoTags().addAll(labels);
-                    log.info("[TagAggregator] Labeling OK, size={}", (labels == null ? 0 : labels.size()));
-                    anySuccess = true;
-                } catch (Exception e) {
-                    log.warn("[TagAggregator] Labeling FAILED: {}", firstLine(e), e);
-                    appendError(errorBag, "imglbl: " + firstLine(e));
-                    // limpiar, pero sin List.of()
-                    p.getAutoTags().clear();
-                }
-            }
-
-            // ---- Estado final ----
-            p.setProcessedAt(LocalDateTime.now());
-            if (anySuccess) {
-                p.setProcessingState(PdI.ProcessingState.PROCESSED);
-                p.setLastError(isEmpty(errorBag) ? null : errorBag.toString());
-            } else {
-                p.setProcessingState(PdI.ProcessingState.ERROR);
-                p.setLastError(isEmpty(errorBag) ? "pipeline: no step succeeded" : errorBag.toString());
-            }
-
-            PdI saved = repo.save(p);
-            log.info("[TagAggregator] END pdiId={} state={} in {}ms",
-                    pdiId, saved.getProcessingState(), (System.currentTimeMillis() - t0));
-
-            return saved;
-
-        } catch (Exception fatal) {
-            log.error("[TagAggregator] FATAL pdiId={}: {}", pdiId, firstLine(fatal), fatal);
-            // intento de persistir estado de error
-            repo.findById(pdiId).ifPresent(p -> {
-                p.setProcessingState(PdI.ProcessingState.ERROR);
-                p.setLastError(firstLine(fatal));
-                p.setProcessedAt(LocalDateTime.now());
-                repo.save(p);
-            });
-            throw fatal; // re-lanzamos para que la capa superior sepa que falló
-        } finally {
-            MDC.clear();
+    private boolean safeSupports(TagProvider p, PdI pdi) {
+        try {
+            return p.supports(pdi);
+        } catch (Exception e) {
+            log.debug("supports() lanzó excepción en {}: {}", safeName(p), e.toString());
+            return false;
         }
     }
 
-    private static void appendError(StringBuilder sb, String msg) { if (sb.length() > 0) sb.append(" | "); sb.append(msg); }
-    private static boolean isEmpty(CharSequence cs) { return cs == null || cs.length() == 0; }
-    private static String firstLine(Throwable e) { String m = e.getMessage(); return (m == null) ? e.getClass().getSimpleName() : m.split("\\R", 2)[0]; }
+    private String safeName(TagProvider p) {
+        try {
+            String n = p.name();
+            return (n != null && !n.isBlank()) ? n : p.getClass().getSimpleName();
+        } catch (Exception e) {
+            return p.getClass().getSimpleName();
+        }
+    }
 }
-

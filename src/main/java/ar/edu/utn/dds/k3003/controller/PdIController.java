@@ -68,11 +68,7 @@ public class PdIController {
 
         if (!activo) {
             log.info("[ProcesadorPdI] Hecho {} inactivo, abortando procesamiento", req.hechoId());
-            return ResponseEntity.ok(new ProcesamientoResponseDTO(
-                    null,
-                    PdI.ProcessingState.ERROR,
-                    List.of()
-            ));
+            return ResponseEntity.internalServerError().build();
         }
 
         PdIDTO entrada = new PdIDTO(

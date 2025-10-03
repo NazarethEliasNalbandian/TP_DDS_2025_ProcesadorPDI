@@ -57,7 +57,7 @@ public class PdI {
         this.lugar = lugar;
         this.momento = momento;
         this.contenido = contenido;
-        this.imageUrl = imageUrl; // 👈 nuevo
+        this.imageUrl = imageUrl;
     }
 
     public void setAutoTags(List<String> tags) {
