@@ -40,6 +40,8 @@ public class TagAggregatorService {
         // conjunto ordenado: evita duplicados y preserva orden
         Set<String> aggregated = new LinkedHashSet<>();
 
+        List<String> tagsList = new ArrayList<>(aggregated);
+
         for (TagProvider provider : providers) {
             String pname = safeName(provider);
 
@@ -72,7 +74,7 @@ public class TagAggregatorService {
         // ==== Actualización del PdI ====
         // Opción A (si existe un método acumulativo):
         try {
-            pdi.setAutoTags((List<String>) aggregated); // <-- usa tu método real (addTags/addAll/etc.)
+            pdi.setAutoTags(tagsList); // <-- usa tu método real (addTags/addAll/etc.)
         } catch (NoSuchMethodError | UnsupportedOperationException e) {
             // Opción B (si solo hay setter):
             // pdi.setTags(new ArrayList<>(aggregated));
