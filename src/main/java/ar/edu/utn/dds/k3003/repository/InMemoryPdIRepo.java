@@ -37,4 +37,9 @@ public class InMemoryPdIRepo implements PdIRepository {
         diccionarioPdI.clear();
         diccionarioHechos.clear();
     }
+
+    @Override
+    public PdI findByHechoIdAndImageUrl(String hechoId, String imageUrl) {
+        return null;
+    }
 }
