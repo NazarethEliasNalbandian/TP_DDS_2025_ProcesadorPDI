@@ -8,6 +8,7 @@ import ar.edu.utn.dds.k3003.repository.InMemoryPdIRepo;
 import ar.edu.utn.dds.k3003.repository.PdIRepository;
 import ar.edu.utn.dds.k3003.services.tagging.TagAggregatorService;
 
+import jakarta.transaction.Transactional;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,6 +61,7 @@ public class Fachada implements FachadaProcesadorPDI {
         this.fachadaSolicitudes = fachadaSolicitudes;
     }
 
+    @Transactional
     @Override
     public PdIDTO procesar(PdIDTO entrada) {
 
