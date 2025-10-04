@@ -66,6 +66,8 @@ public class Fachada implements FachadaProcesadorPDI {
         PdI existente = pdiRepository
                 .findByHechoIdAndImageUrl(entrada.hechoId(), entrada.imageUrl());
 
+        System.out.println("Existente : " + existente);
+
         if (existente != null) {
             return convertirADTO(existente); // evitar reprocesar
         }
