@@ -40,6 +40,8 @@ public class PdIController {
     public ResponseEntity<List<PdIResponseDTO>> listarPdisPorHecho(
             @RequestParam(name = "hecho", required = false) String hechoId) {
 
+        log.info("Hecho recibido → hechoId={}", hechoId);
+
         List<PdIDTO> lista = (hechoId != null)
                 ? fachadaProcesadorPdI.buscarPorHecho(hechoId)
                 : fachadaProcesadorPdI.pdis();

@@ -113,11 +113,19 @@ public class Fachada implements FachadaProcesadorPDI {
 
     @Override
     public List<PdIDTO> buscarPorHecho(String hechoId) {
-        return pdiRepository.findByHechoId(hechoId)
-                .stream()
+        List<PdI> pdis = pdiRepository.findByHechoId(hechoId);
+
+        System.out.println("🔍 PDIs encontradas para hechoId=" + hechoId + ":");
+        pdis.forEach(pdi -> System.out.println(" - PDI ID: " + pdi.getId() +
+                ", contenido: " + pdi.getContenido() +
+                ", descripcion: " + pdi.getDescripcion() +
+                ", estado: " + pdi.getProcessingState()));
+
+        return pdis.stream()
                 .map(this::convertirADTO)
                 .collect(Collectors.toList());
     }
+
 
     @Override
     public List<PdIDTO> pdis() {
