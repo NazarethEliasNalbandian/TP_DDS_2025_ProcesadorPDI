@@ -44,7 +44,7 @@ public class PdIController {
                 ? fachadaProcesadorPdI.buscarPorHecho(hechoId)
                 : fachadaProcesadorPdI.pdis();
 
-        // log.info("Resultado consulta PdIs → hechoId={} count={}", hechoId, lista.size());
+        log.info("Resultado consulta PdIs → hechoId={} count={}", hechoId, lista.size());
 
         return ResponseEntity.ok(lista.stream().map(this::toResponse).toList());
     }
