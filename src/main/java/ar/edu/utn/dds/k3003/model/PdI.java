@@ -21,6 +21,7 @@ public class PdI {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "hecho_id")
     private String hechoId;
     private String descripcion;
     private String lugar;

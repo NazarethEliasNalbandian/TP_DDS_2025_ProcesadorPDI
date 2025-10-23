@@ -10,8 +10,7 @@ public interface FachadaProcesadorPDI {
 
     PdIDTO buscarPdIPorId(String pdiId) throws NoSuchElementException;
 
-    List<PdIDTO> buscarPorHecho(String hechoId)
-            throws NoSuchElementException;
+    List<PdIDTO> buscarPorHecho(String hechoId);
 
     void setFachadaSolicitudes(FachadaSolicitudes fachadaSolicitudes);
 
