@@ -11,6 +11,8 @@ import ar.edu.utn.dds.k3003.services.tagging.TagAggregatorService;
 import jakarta.transaction.Transactional;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
@@ -114,18 +116,10 @@ public class Fachada implements FachadaProcesadorPDI {
     @Override
     public List<PdIDTO> buscarPorHecho(String hechoId) {
         List<PdI> pdis = pdiRepository.findByHechoId(hechoId);
-
-        System.out.println("🔍 PDIs encontradas para hechoId=" + hechoId + ":");
-        pdis.forEach(pdi -> System.out.println(" - PDI ID: " + pdi.getId() +
-                ", contenido: " + pdi.getContenido() +
-                ", descripcion: " + pdi.getDescripcion() +
-                ", estado: " + pdi.getProcessingState()));
-
-        return pdis.stream()
-                .map(this::convertirADTO)
-                .collect(Collectors.toList());
+        log.info("PDIs encontradas para hechoId={}: {}", hechoId, pdis.size());
+        pdis.forEach(pdi -> log.info("PDI: {}", pdi));
+        return pdis.stream().map(this::convertirADTO).toList();
     }
-
 
     @Override
     public List<PdIDTO> pdis() {
