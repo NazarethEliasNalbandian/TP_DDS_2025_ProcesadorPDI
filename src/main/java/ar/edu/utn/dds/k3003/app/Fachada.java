@@ -8,7 +8,7 @@ import ar.edu.utn.dds.k3003.repository.InMemoryPdIRepo;
 import ar.edu.utn.dds.k3003.repository.PdIRepository;
 import ar.edu.utn.dds.k3003.services.tagging.TagAggregatorService;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -114,6 +114,7 @@ public class Fachada implements FachadaProcesadorPDI {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<PdIDTO> buscarPorHecho(String hechoId) {
         log.info("HECHO hechoId={}:", hechoId);
         try {
