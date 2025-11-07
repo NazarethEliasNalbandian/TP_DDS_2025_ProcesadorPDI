@@ -1,6 +1,8 @@
 package ar.edu.utn.dds.k3003.facades;
 
 import ar.edu.utn.dds.k3003.facades.dtos.PdIDTO;
+import ar.edu.utn.dds.k3003.model.PdI;
+
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -18,6 +20,5 @@ public interface FachadaProcesadorPDI {
 
     void borrarTodo();
 
-
-
+    PdI guardarPendiente(PdI pdi);
 }

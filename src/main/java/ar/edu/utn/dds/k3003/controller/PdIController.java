@@ -10,6 +10,7 @@ import ar.edu.utn.dds.k3003.model.PdI;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
@@ -25,15 +26,20 @@ public class PdIController {
     private final FachadaProcesadorPDI fachadaProcesadorPdI;
     private final ar.edu.utn.dds.k3003.facades.FachadaSolicitudes solicitudes;
     private static final Logger log = LoggerFactory.getLogger(PdIController.class);
+    private final RabbitTemplate rabbitTemplate;
 
     @Autowired
     public PdIController(
             FachadaProcesadorPDI fachadaProcesadorPdI,
             @Qualifier("solicitudesRetrofitProxy")
-            ar.edu.utn.dds.k3003.facades.FachadaSolicitudes solicitudes) {
+            ar.edu.utn.dds.k3003.facades.FachadaSolicitudes solicitudes,
+            RabbitTemplate rabbitTemplate) {
+
         this.fachadaProcesadorPdI = fachadaProcesadorPdI;
         this.solicitudes = solicitudes;
+        this.rabbitTemplate = rabbitTemplate;
     }
+
 
     // GET /api/pdis?hecho={hechoId}  |  GET /api/pdis
     @GetMapping
@@ -59,60 +65,42 @@ public class PdIController {
         return ResponseEntity.ok(toResponse(dto));
     }
 
-    // POST /api/pdis
     @PostMapping
     public ResponseEntity<ProcesamientoResponseDTO> procesarNuevoPdi(@RequestBody PdIRequestDTO req) {
         log.info("[ProcesadorPdI] Nuevo request recibido: hechoId={}, descripcion={}, imageUrl={}",
                 req.hechoId(), req.descripcion(), req.imageUrl());
 
         boolean activo = this.solicitudes.estaActivo(req.hechoId());
-        log.info("[ProcesadorPdI] Estado del hechoId={} → activo={}", req.hechoId(), activo);
-
         if (!activo) {
-            log.info("[ProcesadorPdI] Hecho {} inactivo, abortando procesamiento", req.hechoId());
+            log.warn("[ProcesadorPdI] Hecho {} inactivo, abortando procesamiento", req.hechoId());
             return ResponseEntity.internalServerError().build();
         }
 
-        PdIDTO entrada = new PdIDTO(
-                null,
+        // 🔹 1️⃣ Crear entidad PdI en estado PENDING
+        PdI nuevo = new PdI(
                 req.hechoId(),
                 req.descripcion(),
                 req.lugar(),
                 req.momento(),
                 req.contenido(),
-                req.imageUrl(),
-                List.of(),
-                null,
-                (req.imageUrl() != null && !req.imageUrl().isBlank())
-                        ? PdI.ProcessingState.PENDING
-                        : PdI.ProcessingState.PROCESSED,
-                null,
-                null
+                req.imageUrl()
         );
-        log.info("[ProcesadorPdI] DTO inicial armado: {}", entrada);
+        nuevo.setProcessingState(PdI.ProcessingState.PENDING);
 
-        try {
-            PdIDTO procesado = fachadaProcesadorPdI.procesar(entrada);
-            log.info("[ProcesadorPdI] Procesamiento exitoso para hechoId={} → id={}, state={}, tags={}",
-                    procesado.hechoId(), procesado.id(), procesado.processingState(), procesado.autoTags());
+        PdI guardado = fachadaProcesadorPdI.guardarPendiente(nuevo);
 
-            return ResponseEntity.ok(new ProcesamientoResponseDTO(
-                    procesado.id(),
-                    procesado.processingState(),
-                    (procesado.autoTags() != null) ? procesado.autoTags() : List.of()
-            ));
+        log.info("[ProcesadorPdI] PdI guardado con id={} y estado=PENDING", guardado.getId());
 
-        } catch (HechoInactivoException e) {
-            log.info("[ProcesadorPdI] Hecho {} marcado como inactivo en fachada", req.hechoId(), e);
-            return ResponseEntity.ok(new ProcesamientoResponseDTO(
-                    null,
-                    PdI.ProcessingState.ERROR,
-                    List.of()
-            ));
-        } catch (Exception e) {
-            log.info("[ProcesadorPdI] Error inesperado procesando hechoId={}: {}", req.hechoId(), e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
-        }
+        // 🔹 2️⃣ Enviar ID a la cola de trabajo
+        rabbitTemplate.convertAndSend("pdi.direct", "pdi.process", guardado.getId());
+        log.info("[ProcesadorPdI] ID={} enviado a cola 'pdi.process'", guardado.getId());
+
+        // 🔹 3️⃣ Responder inmediatamente (asincrónico)
+        return ResponseEntity.accepted().body(new ProcesamientoResponseDTO(
+                String.valueOf(guardado.getId()),
+                PdI.ProcessingState.PENDING,
+                List.of()
+        ));
     }
 
     // DELETE /api/pdis/purge

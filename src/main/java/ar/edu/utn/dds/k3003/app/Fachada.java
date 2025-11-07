@@ -63,6 +63,12 @@ public class Fachada implements FachadaProcesadorPDI {
         this.fachadaSolicitudes = fachadaSolicitudes;
     }
 
+    public PdI guardarPendiente(PdI pdi) {
+        // Guarda el PDI sin procesar
+        return this.pdiRepository.save(pdi);
+    }
+
+
     @Transactional
     @Override
     public PdIDTO procesar(PdIDTO entrada) {
