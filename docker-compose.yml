@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16
@@ -20,11 +18,22 @@ services:
     networks:
       - tpnet
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: unless-stopped
+    networks:
+      - tpnet
+
   app:
     build: .
     depends_on:
       db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     environment:
       SPRING_PROFILES_ACTIVE: "prod,postgres"
       DB_HOST: db
@@ -32,8 +41,14 @@ services:
       DB_NAME: tpdds
       DB_USER: postgres
       DB_PASSWORD: postgres
-      # Tu variable propia del módulo Solicitudes:
       URL_SOLICITUDES: "https://two025-tp-entrega-2-jenniferfabflores.onrender.com/"
+      # 🔹 RabbitMQ explícito
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+
+      DD_API_KEY: "2d3d790b5bc6e17577ebe1a810157cfb"
     ports:
       - "8080:8080"
     restart: unless-stopped
