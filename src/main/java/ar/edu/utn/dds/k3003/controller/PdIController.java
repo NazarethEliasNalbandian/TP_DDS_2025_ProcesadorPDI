@@ -91,9 +91,25 @@ public class PdIController {
 
         log.info("[ProcesadorPdI] PdI guardado con id={} y estado=PENDING", guardado.getId());
 
-        // 🔹 2️⃣ Enviar ID a la cola de trabajo
-        rabbitTemplate.convertAndSend("pdi.direct", "pdi.process", guardado.getId());
-        log.info("[ProcesadorPdI] ID={} enviado a cola 'pdi.process'", guardado.getId());
+        // 🔹 2️⃣ Intentar enviar ID a la cola de trabajo
+        try {
+            rabbitTemplate.convertAndSend("pdi.direct", "pdi.process", guardado.getId());
+            log.info("[ProcesadorPdI] ✅ ID={} enviado exitosamente a cola 'pdi.process'", guardado.getId());
+        } catch (Exception e) {
+            log.error("[ProcesadorPdI] ❌ Error al enviar mensaje a RabbitMQ: {}", e.getMessage(), e);
+
+            // Opcional: marcar el PdI con error de encolado
+            guardado.setProcessingState(PdI.ProcessingState.ERROR);
+            guardado.setLastError("Error enviando mensaje a RabbitMQ: " + e.getMessage());
+            fachadaProcesadorPdI.guardarPendiente(guardado);
+
+            // Responder error 500 para que quede registrado en logs de API
+            return ResponseEntity.internalServerError().body(new ProcesamientoResponseDTO(
+                    String.valueOf(guardado.getId()),
+                    PdI.ProcessingState.ERROR,
+                    List.of("Error en comunicación con la cola de procesamiento")
+            ));
+        }
 
         // 🔹 3️⃣ Responder inmediatamente (asincrónico)
         return ResponseEntity.accepted().body(new ProcesamientoResponseDTO(
@@ -102,6 +118,7 @@ public class PdIController {
                 List.of()
         ));
     }
+
 
     // DELETE /api/pdis/purge
     @DeleteMapping("/purge")
