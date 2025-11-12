@@ -85,25 +85,16 @@ public class Fachada implements FachadaProcesadorPDI {
             }
         }
 
-        PdI p = new PdI();
-        p.setHechoId(entrada.hechoId());
-        p.setDescripcion(entrada.descripcion());
-        p.setLugar(entrada.lugar());
-        p.setMomento(entrada.momento());
-        p.setContenido(entrada.contenido());
-        p.setImageUrl(entrada.imageUrl());
-        p.setProcessingState(PdI.ProcessingState.PROCESSING);
+        existente = pdiRepository.save(existente);
 
-        p = pdiRepository.save(p);
-
-        p = tagService.processImageTags(p.getId());
+        existente = tagService.processImageTags(existente.getId());
 
         // sin imagen, dejalo PROCESSED y sin autoTags/ocrText
-        p.setProcessedAt(LocalDateTime.now());
-        p.setProcessingState(PdI.ProcessingState.PROCESSED);
-        p = pdiRepository.save(p);
+        existente.setProcessedAt(LocalDateTime.now());
+        existente.setProcessingState(PdI.ProcessingState.PROCESSED);
+        existente = pdiRepository.save(existente);
 
-        return convertirADTO(p);
+        return convertirADTO(existente);
     }
 
     @Override
