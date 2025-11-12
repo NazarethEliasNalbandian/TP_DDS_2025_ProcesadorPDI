@@ -24,4 +24,11 @@ public record PdIDTO(
         this(id, hechoId, null, null, null, null, null, List.of(), null,
                 PdI.ProcessingState.PENDING, null, null);
     }
+
+    public PdIDTO(String hechoId, String descripcion, String lugar, LocalDateTime momento,
+                  String contenido, String imageUrl) {
+        this(null, hechoId, descripcion, lugar, momento, contenido,
+                imageUrl, List.of(), null, PdI.ProcessingState.PENDING, null, null);
+    }
+
 }

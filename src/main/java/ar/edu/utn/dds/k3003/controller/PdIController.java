@@ -3,7 +3,6 @@ package ar.edu.utn.dds.k3003.controller;
 import ar.edu.utn.dds.k3003.controller.dtos.ProcesamientoResponseDTO;
 import ar.edu.utn.dds.k3003.controller.dtos.PdIRequestDTO;
 import ar.edu.utn.dds.k3003.controller.dtos.PdIResponseDTO;
-import ar.edu.utn.dds.k3003.exceptions.domain.pdi.HechoInactivoException;
 import ar.edu.utn.dds.k3003.facades.FachadaProcesadorPDI;
 import ar.edu.utn.dds.k3003.facades.dtos.PdIDTO;
 import ar.edu.utn.dds.k3003.model.PdI;
@@ -70,13 +69,14 @@ public class PdIController {
         log.info("[ProcesadorPdI] Nuevo request recibido: hechoId={}, descripcion={}, imageUrl={}",
                 req.hechoId(), req.descripcion(), req.imageUrl());
 
+        // 🔹 1️⃣ Verificar que el hecho esté activo
         boolean activo = this.solicitudes.estaActivo(req.hechoId());
         if (!activo) {
             log.warn("[ProcesadorPdI] Hecho {} inactivo, abortando procesamiento", req.hechoId());
             return ResponseEntity.internalServerError().build();
         }
 
-        // 🔹 1️⃣ Crear entidad PdI en estado PENDING
+        // 🔹 2️⃣ Crear PdI en estado PENDING y persistirlo
         PdI nuevo = new PdI(
                 req.hechoId(),
                 req.descripcion(),
@@ -88,22 +88,37 @@ public class PdIController {
         nuevo.setProcessingState(PdI.ProcessingState.PENDING);
 
         PdI guardado = fachadaProcesadorPdI.guardarPendiente(nuevo);
-
         log.info("[ProcesadorPdI] PdI guardado con id={} y estado=PENDING", guardado.getId());
 
-        // 🔹 2️⃣ Intentar enviar ID a la cola de trabajo
+        // 🔹 3️⃣ Enviar el PdI completo a la cola (como JSON)
         try {
-            rabbitTemplate.convertAndSend("pdi.direct", "pdi.process", guardado.getId());
-            log.info("[ProcesadorPdI] ✅ ID={} enviado exitosamente a cola 'pdi.process'", guardado.getId());
+            PdIDTO dto = new PdIDTO(
+                    String.valueOf(guardado.getId()),      // id
+                    guardado.getHechoId(),                 // hechoId
+                    guardado.getDescripcion(),             // descripcion
+                    guardado.getLugar(),                   // lugar
+                    guardado.getMomento(),                 // momento
+                    guardado.getContenido(),               // contenido
+                    guardado.getImageUrl(),                // imageUrl
+                    List.of(),                             // autoTags (vacío)
+                    null,                                  // ocrText
+                    PdI.ProcessingState.PENDING,           // estado
+                    null,                                  // processedAt
+                    null                                   // lastError
+            );
+
+            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(dto);
+            rabbitTemplate.convertAndSend("pdi.direct", "pdi.process", json);
+
+            log.info("[ProcesadorPdI] ✅ PdI id={} enviado a la cola 'pdi.process' (JSON)", guardado.getId());
+
         } catch (Exception e) {
             log.error("[ProcesadorPdI] ❌ Error al enviar mensaje a RabbitMQ: {}", e.getMessage(), e);
 
-            // Opcional: marcar el PdI con error de encolado
             guardado.setProcessingState(PdI.ProcessingState.ERROR);
             guardado.setLastError("Error enviando mensaje a RabbitMQ: " + e.getMessage());
             fachadaProcesadorPdI.guardarPendiente(guardado);
 
-            // Responder error 500 para que quede registrado en logs de API
             return ResponseEntity.internalServerError().body(new ProcesamientoResponseDTO(
                     String.valueOf(guardado.getId()),
                     PdI.ProcessingState.ERROR,
@@ -111,14 +126,13 @@ public class PdIController {
             ));
         }
 
-        // 🔹 3️⃣ Responder inmediatamente (asincrónico)
+        // 🔹 4️⃣ Responder inmediatamente (procesamiento asincrónico)
         return ResponseEntity.accepted().body(new ProcesamientoResponseDTO(
                 String.valueOf(guardado.getId()),
                 PdI.ProcessingState.PENDING,
                 List.of()
         ));
     }
-
 
     // DELETE /api/pdis/purge
     @DeleteMapping("/purge")

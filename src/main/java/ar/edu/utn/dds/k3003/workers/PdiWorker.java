@@ -1,55 +1,43 @@
 package ar.edu.utn.dds.k3003.workers;
 
-import ar.edu.utn.dds.k3003.model.PdI;
-import ar.edu.utn.dds.k3003.repository.PdIRepository;
-import ar.edu.utn.dds.k3003.services.tagging.TagAggregatorService;
+import ar.edu.utn.dds.k3003.facades.FachadaProcesadorPDI;
+import ar.edu.utn.dds.k3003.facades.dtos.PdIDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
-import java.time.LocalDateTime;
 
 @Slf4j
 @Component
 public class PdiWorker {
 
-    private final PdIRepository pdiRepository;
-    private final TagAggregatorService tagAggregatorService;
+    private final FachadaProcesadorPDI fachadaProcesadorPdI;
 
-    public PdiWorker(PdIRepository pdiRepository, TagAggregatorService tagAggregatorService) {
-        this.pdiRepository = pdiRepository;
-        this.tagAggregatorService = tagAggregatorService;
+    public PdiWorker(FachadaProcesadorPDI fachadaProcesadorPdI) {
+        this.fachadaProcesadorPdI = fachadaProcesadorPdI;
     }
 
     /**
-     * 🎯 Cada worker escucha la misma cola y RabbitMQ reparte los mensajes.
-     * Un PdI se procesa exactamente una vez.
+     * 🎯 Escucha la cola y delega directamente al método procesar() de la fachada.
+     * El mensaje debe contener los datos del PdI serializados (JSON).
      */
     @RabbitListener(queues = "${queue.name}")
     public void handleMessage(String body) {
         try {
-            Long pdiId = Long.parseLong(body);
-            log.info("📥 [Worker] Recibido PdI id={}", pdiId);
+            log.info("📥 [Worker] Recibido mensaje: {}", body);
 
-            PdI pdi = pdiRepository.findById(pdiId).orElse(null);
-            if (pdi == null) {
-                log.warn("⚠️ PdI id={} no encontrado en la base", pdiId);
-                return;
-            }
+            // 🔸 Deserializar el mensaje al DTO
+            // (Suponiendo que el mensaje que mandás al Rabbit es un JSON con los campos del PdI)
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            PdIDTO entrada = mapper.readValue(body, PdIDTO.class);
 
-            // 🔸 Procesamiento
-            pdi.setProcessingState(PdI.ProcessingState.PROCESSING);
-            pdiRepository.save(pdi);
+            // 🔸 Llamar al méto.do procesar() original
+            var resultado = fachadaProcesadorPdI.procesar(entrada);
 
-            tagAggregatorService.processImageTags(pdiId);
-
-            pdi.setProcessingState(PdI.ProcessingState.PROCESSED);
-            pdi.setProcessedAt(LocalDateTime.now());
-            pdiRepository.save(pdi);
-
-            log.info("✅ PdI id={} procesado correctamente.", pdiId);
+            log.info("✅ [Worker] PdI procesado correctamente: id={}, estado={}",
+                    resultado.id(), resultado.processingState());
 
         } catch (Exception e) {
-            log.error("❌ Error procesando mensaje '{}': {}", body, e.getMessage(), e);
+            log.error("❌ [Worker] Error procesando mensaje '{}': {}", body, e.getMessage(), e);
         }
     }
 }
