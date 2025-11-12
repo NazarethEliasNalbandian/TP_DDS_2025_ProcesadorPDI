@@ -79,10 +79,12 @@ public class Fachada implements FachadaProcesadorPDI {
         System.out.println("Existente : " + existente);
 
         if (existente != null) {
-            return convertirADTO(existente); // evitar reprocesar
+            if (existente.getProcessingState() == PdI.ProcessingState.PROCESSED ||
+                    existente.getProcessingState() == PdI.ProcessingState.PROCESSING) {
+                return convertirADTO(existente);
+            }
         }
-
-
+        
         // map DTO -> entity inicial
         PdI p = new PdI();
         p.setHechoId(entrada.hechoId());
