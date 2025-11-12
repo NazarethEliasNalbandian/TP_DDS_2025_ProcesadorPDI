@@ -14,6 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -107,7 +109,9 @@ public class PdIController {
                     null                                   // lastError
             );
 
-            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(dto);
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+            String json = mapper.writeValueAsString(dto);
             rabbitTemplate.convertAndSend("pdi.direct", "pdi.process", json);
 
             log.info("[ProcesadorPdI] ✅ PdI id={} enviado a la cola 'pdi.process' (JSON)", guardado.getId());

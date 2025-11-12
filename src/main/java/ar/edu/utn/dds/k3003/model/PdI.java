@@ -46,6 +46,7 @@ public class PdI {
     @Enumerated(EnumType.STRING)
     private ProcessingState processingState = ProcessingState.PENDING;
 
+    @Column(columnDefinition = "TEXT")
     private String lastError;
     private LocalDateTime processedAt;
 
