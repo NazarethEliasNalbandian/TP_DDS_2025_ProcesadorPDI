@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -75,7 +76,32 @@ public class PdIController {
         boolean activo = this.solicitudes.estaActivo(req.hechoId());
         if (!activo) {
             log.warn("[ProcesadorPdI] Hecho {} inactivo, abortando procesamiento", req.hechoId());
-            return ResponseEntity.internalServerError().build();
+            return ResponseEntity
+                    .badRequest()
+                    .body(new ProcesamientoResponseDTO(
+                            null,
+                            PdI.ProcessingState.ERROR,
+                            List.of("El hecho " + req.hechoId() + " está inactivo y no puede procesarse.")
+                    ));
+        }
+
+        PdI existente = fachadaProcesadorPdI.buscarPorHecho(req.hechoId()).stream()
+                .filter(pdi -> pdi.imageUrl() != null && pdi.imageUrl().equals(req.imageUrl()))
+                .findFirst()
+                .map(pdiDTO -> fachadaProcesadorPdI.buscarPdIPorId(pdiDTO.id()))
+                .map(dto -> new PdI(dto.hechoId(), dto.descripcion(), dto.lugar(),
+                        dto.momento(), dto.contenido(), dto.imageUrl()))
+                .orElse(null);
+
+        if (existente != null) {
+            log.warn("[ProcesadorPdI] ⚠️ PdI duplicado detectado (hechoId={}, imageUrl={})", req.hechoId(), req.imageUrl());
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT) // 409 Conflict
+                    .body(new ProcesamientoResponseDTO(
+                            null,
+                            PdI.ProcessingState.ERROR,
+                            List.of("Ya existe un PdI registrado para este hecho con la misma imagen.")
+                    ));
         }
 
         // 🔹 2️⃣ Crear PdI en estado PENDING y persistirlo
