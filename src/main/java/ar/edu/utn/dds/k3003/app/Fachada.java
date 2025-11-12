@@ -84,8 +84,7 @@ public class Fachada implements FachadaProcesadorPDI {
                 return convertirADTO(existente);
             }
         }
-        
-        // map DTO -> entity inicial
+
         PdI p = new PdI();
         p.setHechoId(entrada.hechoId());
         p.setDescripcion(entrada.descripcion());
@@ -93,22 +92,16 @@ public class Fachada implements FachadaProcesadorPDI {
         p.setMomento(entrada.momento());
         p.setContenido(entrada.contenido());
         p.setImageUrl(entrada.imageUrl());
-        p.setProcessingState(
-                (entrada.imageUrl() != null && !entrada.imageUrl().isBlank())
-                        ? PdI.ProcessingState.PROCESSING // o PENDING si querés, pero lo vamos a completar acá mismo
-                        : PdI.ProcessingState.PROCESSED
-        );
+        p.setProcessingState(PdI.ProcessingState.PROCESSING);
 
         p = pdiRepository.save(p);
 
-        // si hay imagen, ejecutar pipeline sincrónico
-        if (p.getImageUrl() != null && !p.getImageUrl().isBlank()) {
-            p = tagService.processImageTags(p.getId()); // <--- ahora bloqueante
-        } else {
-            // sin imagen, dejalo PROCESSED y sin autoTags/ocrText
-            p.setProcessedAt(LocalDateTime.now());
-            p = pdiRepository.save(p);
-        }
+        p = tagService.processImageTags(p.getId());
+
+        // sin imagen, dejalo PROCESSED y sin autoTags/ocrText
+        p.setProcessedAt(LocalDateTime.now());
+        p.setProcessingState(PdI.ProcessingState.PROCESSED);
+        p = pdiRepository.save(p);
 
         return convertirADTO(p);
     }
