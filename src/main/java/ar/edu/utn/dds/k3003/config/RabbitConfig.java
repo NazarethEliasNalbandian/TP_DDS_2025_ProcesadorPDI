@@ -6,6 +6,10 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitConfig {
+    @Bean
+    public DirectExchange directExchange() {
+        return new DirectExchange("pdi.direct");
+    }
 
     @Bean
     public Queue pdiQueue() {
@@ -13,12 +17,7 @@ public class RabbitConfig {
     }
 
     @Bean
-    public DirectExchange pdiExchange() {
-        return new DirectExchange("pdi.direct");
-    }
-
-    @Bean
-    public Binding pdiBinding(Queue pdiQueue, DirectExchange pdiExchange) {
-        return BindingBuilder.bind(pdiQueue).to(pdiExchange).with("pdi.process");
+    public Binding binding(Queue pdiQueue, DirectExchange directExchange) {
+        return BindingBuilder.bind(pdiQueue).to(directExchange).with("pdi.process");
     }
 }
