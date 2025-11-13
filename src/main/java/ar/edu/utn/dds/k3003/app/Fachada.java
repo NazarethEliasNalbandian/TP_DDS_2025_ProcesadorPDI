@@ -8,6 +8,7 @@ import ar.edu.utn.dds.k3003.repository.InMemoryPdIRepo;
 import ar.edu.utn.dds.k3003.repository.PdIRepository;
 import ar.edu.utn.dds.k3003.services.tagging.TagAggregatorService;
 
+import jakarta.annotation.PostConstruct;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,10 @@ import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
+
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.Counter;
 import java.util.stream.Collectors;
 
 /**
@@ -43,6 +48,21 @@ public class Fachada implements FachadaProcesadorPDI {
     private final @Nullable TagAggregatorService tagService;
 
     private final AtomicLong generadorID = new AtomicLong(1);
+
+    // ⭐ AGREGADO — MÉTRICAS
+    @Autowired
+    private MeterRegistry meterRegistry;
+
+    private Counter pdisProcesados;        // total de pdis procesados
+    private Counter pdisError;             // total de errores
+    private Timer tiempoProcesamiento;     // tiempo por procesamiento
+
+    @PostConstruct
+    public void initMetrics() {            // ⭐ AGREGADO
+        this.pdisProcesados = meterRegistry.counter("pdi.procesados.total");
+        this.pdisError = meterRegistry.counter("pdi.procesados.error");
+        this.tiempoProcesamiento = meterRegistry.timer("pdi.procesamiento.tiempo");
+    }
 
     /** Constructor por defecto para tests/local (repo en memoria). */
     protected Fachada() {
@@ -73,28 +93,47 @@ public class Fachada implements FachadaProcesadorPDI {
     @Override
     public PdIDTO procesar(PdIDTO entrada) {
 
-        PdI existente = pdiRepository
-                .findByHechoIdAndImageUrl(entrada.hechoId(), entrada.imageUrl());
+        long inicio = System.currentTimeMillis();   // ⭐ AGREGADO
 
-        System.out.println("Existente : " + existente);
+        try {
+            // --- TU CÓDIGO ORIGINAL TAL CUAL ---
+            PdI existente = pdiRepository
+                    .findByHechoIdAndImageUrl(entrada.hechoId(), entrada.imageUrl());
 
-        if (existente != null) {
-            if (existente.getProcessingState() == PdI.ProcessingState.PROCESSED ||
-                    existente.getProcessingState() == PdI.ProcessingState.PROCESSING) {
-                return convertirADTO(existente);
+            System.out.println("Existente : " + existente);
+
+            if (existente != null) {
+                if (existente.getProcessingState() == PdI.ProcessingState.PROCESSED ||
+                        existente.getProcessingState() == PdI.ProcessingState.PROCESSING) {
+                    return convertirADTO(existente);
+                }
             }
+
+            existente = pdiRepository.save(existente);
+
+            existente = tagService.processImageTags(existente.getId());
+
+            existente.setProcessedAt(LocalDateTime.now());
+            existente.setProcessingState(PdI.ProcessingState.PROCESSED);
+            existente = pdiRepository.save(existente);
+
+            PdIDTO resultado = convertirADTO(existente);
+
+            // ⭐ MÉTRICA: PDI procesado OK
+            pdisProcesados.increment();
+
+            return resultado;
+
+        } catch (Exception e) {
+            // ⭐ MÉTRICA: error
+            pdisError.increment();
+            throw e;
+
+        } finally {
+            // ⭐ MÉTRICA: tiempo transcurrido
+            long duracion = System.currentTimeMillis() - inicio;
+            tiempoProcesamiento.record(duracion, java.util.concurrent.TimeUnit.MILLISECONDS);
         }
-
-        existente = pdiRepository.save(existente);
-
-        existente = tagService.processImageTags(existente.getId());
-
-        // sin imagen, dejalo PROCESSED y sin autoTags/ocrText
-        existente.setProcessedAt(LocalDateTime.now());
-        existente.setProcessingState(PdI.ProcessingState.PROCESSED);
-        existente = pdiRepository.save(existente);
-
-        return convertirADTO(existente);
     }
 
     @Override

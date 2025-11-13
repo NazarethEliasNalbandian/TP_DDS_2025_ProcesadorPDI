@@ -17,23 +17,48 @@ public class MetricsConfig {
             @Value("${management.datadog.metrics.export.apiKey}") String apiKey,
             @Value("${management.datadog.metrics.export.uri:https://api.datadoghq.com}") String uri,
             @Value("${management.datadog.metrics.export.step:30s}") String step) {
+
         return new DatadogConfig() {
-            @Override public String apiKey() { return apiKey; }
-            @Override public String uri() { return uri; }
-            @Override public String get(String k) { return null; }
-            @Override public java.time.Duration step() { return java.time.Duration.parse("PT" + step.toUpperCase()); }
+
+            @Override
+            public String apiKey() {
+                return apiKey;
+            }
+
+            @Override
+            public String uri() {
+                return uri;
+            }
+
+            @Override
+            public java.time.Duration step() {
+                // Micrometer requiere formato ISO-8601 -> PT30S, PT1M, etc.
+                if (step.endsWith("s")) {
+                    return java.time.Duration.ofSeconds(Long.parseLong(step.replace("s", "")));
+                } else if (step.endsWith("m")) {
+                    return java.time.Duration.ofMinutes(Long.parseLong(step.replace("m", "")));
+                }
+                return java.time.Duration.ofSeconds(30); // fallback seguro
+            }
+
+            @Override
+            public String get(String key) {
+                return null; // dejamos defaults
+            }
         };
     }
 
     @Bean
     public MeterRegistry meterRegistry(DatadogConfig config) {
-        var registry = DatadogMeterRegistry.builder(config).build();
-        // Binders “de infra”
+        DatadogMeterRegistry registry = DatadogMeterRegistry.builder(config).build();
+
+        // Métricas de infraestructura
         new JvmGcMetrics().bindTo(registry);
         new JvmMemoryMetrics().bindTo(registry);
         new JvmHeapPressureMetrics().bindTo(registry);
         new ProcessorMetrics().bindTo(registry);
         new FileDescriptorMetrics().bindTo(registry);
+
         return registry;
     }
 }
