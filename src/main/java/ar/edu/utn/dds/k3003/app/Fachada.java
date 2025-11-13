@@ -88,12 +88,31 @@ public class Fachada implements FachadaProcesadorPDI {
         return this.pdiRepository.save(pdi);
     }
 
-
+    
     @Transactional
     @Override
     public PdIDTO procesar(PdIDTO entrada) {
 
         long inicio = System.currentTimeMillis();   // ⭐ AGREGADO
+
+        // ⭐ AGREGADO — DEBUG MICROMETER + API KEY
+        try {
+            // Print de API Key
+            String ddApiKey = System.getenv("DD_API_KEY");
+            System.out.println("🔥 DATADOG API KEY (env): " + ddApiKey);
+
+            // Print del total de métricas registradas
+            System.out.println("📊 MeterRegistry tiene " + meterRegistry.getMeters().size() + " métricas registradas");
+
+            // Listar métricas registradas
+            meterRegistry.getMeters().forEach(m -> {
+                System.out.println("   ➤ MÉTRICA: " + m.getId().getName());
+            });
+
+        } catch (Exception ex) {
+            System.out.println("⚠️ Error mostrando métricas: " + ex.getMessage());
+        }
+        // ⭐ FIN DEBUG
 
         try {
             // --- TU CÓDIGO ORIGINAL TAL CUAL ---
