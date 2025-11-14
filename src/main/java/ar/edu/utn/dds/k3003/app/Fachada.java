@@ -1,5 +1,7 @@
 package ar.edu.utn.dds.k3003.app;
 
+import ar.edu.utn.dds.k3003.clients.FuentesProxy;
+import ar.edu.utn.dds.k3003.clients.dtos.ProcesamientoFuentesDTO;
 import ar.edu.utn.dds.k3003.facades.FachadaProcesadorPDI;
 import ar.edu.utn.dds.k3003.facades.FachadaSolicitudes;
 import ar.edu.utn.dds.k3003.facades.dtos.PdIDTO;
@@ -57,6 +59,8 @@ public class Fachada implements FachadaProcesadorPDI {
     private Counter pdisError;             // total de errores
     private Timer tiempoProcesamiento;     // tiempo por procesamiento
 
+    private final FuentesProxy fuentesProxy;   // ⭐ AGREGADO
+
     @PostConstruct
     public void initMetrics() {            // ⭐ AGREGADO
         this.pdisProcesados = meterRegistry.counter("pdi.procesados.total");
@@ -65,7 +69,8 @@ public class Fachada implements FachadaProcesadorPDI {
     }
 
     /** Constructor por defecto para tests/local (repo en memoria). */
-    protected Fachada() {
+    protected Fachada(FuentesProxy fuentesProxy) {
+        this.fuentesProxy = fuentesProxy;
         this.pdiRepository = new InMemoryPdIRepo();
         this.tagService = null;
     }
@@ -73,9 +78,11 @@ public class Fachada implements FachadaProcesadorPDI {
     /** ÚNICO constructor autowireable (repo + servicio opcional). */
     @Autowired
     public Fachada(PdIRepository pdiRepository,
-                   @Nullable TagAggregatorService tagAggregatorService) {
+                   @Nullable TagAggregatorService tagAggregatorService,
+                   FuentesProxy fuentesProxy) {            // ⭐ AGREGADO
         this.pdiRepository = pdiRepository;
         this.tagService = tagAggregatorService;
+        this.fuentesProxy = fuentesProxy;                // ⭐ AGREGADO
     }
 
     @Override
@@ -140,6 +147,15 @@ public class Fachada implements FachadaProcesadorPDI {
 
             // ⭐ MÉTRICA: PDI procesado OK
             pdisProcesados.increment();
+
+            ProcesamientoFuentesDTO procNuevo =
+                    new ProcesamientoFuentesDTO(
+                            resultado.id(),
+                            resultado.processingState().name(),
+                            resultado.autoTags()
+                    );
+
+            fuentesProxy.enviarProcesamientoAHecho(resultado.hechoId(), procNuevo);
 
             return resultado;
 
