@@ -135,12 +135,40 @@ public class Fachada implements FachadaProcesadorPDI {
                 }
             }
 
-            existente = pdiRepository.save(existente);
+            if (existente == null) {
+                // Caso 3: NO existe → crearlo por primera vez
+                existente = new PdI(
+                        entrada.hechoId(),
+                        entrada.descripcion(),
+                        entrada.lugar(),
+                        entrada.momento(),
+                        entrada.contenido(),
+                        entrada.imageUrl()
+                );
+                existente = pdiRepository.save(existente); // PRIMER save (solo si NO existía)
+            }
 
             existente = tagService.processImageTags(existente.getId());
 
             existente.setProcessedAt(LocalDateTime.now());
             existente.setProcessingState(PdI.ProcessingState.PROCESSED);
+
+
+            System.out.println("🔥🔥 PdI ANTES DE GUARDAR 🔥🔥");
+            System.out.println("ID: " + existente.getId());
+            System.out.println("HechoID: " + existente.getHechoId());
+            System.out.println("Estado: " + existente.getProcessingState());
+            System.out.println("OCR Text: " + existente.getOcrText());
+
+            System.out.println("AutoTags (" + existente.getAutoTags().size() + "):");
+            if (existente.getAutoTags().isEmpty()) {
+                System.out.println("   ⚠️  NO HAY TAGS — TagAggregatorService NO generó etiquetas");
+            } else {
+                existente.getAutoTags().forEach(t -> System.out.println("   ✔ " + t));
+            }
+
+            System.out.println("===============================================");
+
             existente = pdiRepository.save(existente);
 
             PdIDTO resultado = convertirADTO(existente);
