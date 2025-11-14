@@ -28,6 +28,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.Counter;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionSynchronization;
+
 import java.util.stream.Collectors;
 
 /**
@@ -183,7 +186,19 @@ public class Fachada implements FachadaProcesadorPDI {
                             resultado.autoTags()
                     );
 
-            fuentesProxy.enviarProcesamientoAHecho(resultado.hechoId(), procNuevo);
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            try {
+                                fuentesProxy.enviarProcesamientoAHecho(resultado.hechoId(), procNuevo);
+                            } catch (Exception ex) {
+                                System.err.println("❌ Error enviando procesamiento a Fuentes después del commit: " + ex.getMessage());
+                                ex.printStackTrace();
+                            }
+                        }
+                    }
+            );
 
             return resultado;
 
